@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบสแกน QR Code</title>
+    <title>ระบบสแกน QR Code (กล้องหลัง)</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- ไลบรารี Html5-QRCode สำหรับประมวลผลการสแกนผ่านกล้อง -->
+    <!-- ดึงไลบรารีหลักสำหรับประมวลผล -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         * {
@@ -14,6 +15,7 @@
             padding: 0;
             font-family: 'Sarabun', sans-serif;
         }
+
         body {
             background-color: #f1f5f9;
             display: flex;
@@ -22,32 +24,38 @@
             min-height: 100vh;
             padding: 1.5rem;
         }
+
         .scanner-card {
             background: #ffffff;
             border-radius: 12px;
             padding: 2rem;
             width: 100%;
             max-width: 480px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
+
         h1 {
             font-size: 1.5rem;
             color: #0f172a;
             margin-bottom: 0.5rem;
         }
+
         p.subtext {
             color: #64748b;
             font-size: 0.9rem;
             margin-bottom: 1.5rem;
         }
+
         #reader {
             width: 100%;
             border-radius: 8px;
             overflow: hidden;
             border: 2px dashed #cbd5e1;
             margin-bottom: 1.5rem;
+            background: #000;
         }
+
         .result-container {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -56,62 +64,113 @@
             text-align: left;
             word-break: break-all;
         }
+
         .result-title {
             font-weight: 600;
             color: #334155;
             margin-bottom: 0.25rem;
             font-size: 0.95rem;
         }
+
         .result-text {
             color: #2563eb;
             font-size: 1rem;
         }
+
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
     </style>
 </head>
+
 <body>
 
     <div class="scanner-card">
-        <h1>📷 สแกน QR Code</h1>
-        <p class="subtext">กดอนุญาตการเข้าถึงกล้องเพื่อเริ่มสแกน</p>
+        <h1>📷 สแกน QR Code (กล้องหลัง)</h1>
+        <p class="subtext">กรุณากดปุ่มเพื่อเปิดกล้องหลังและสแกน</p>
+
+        <button class="btn" id="start-btn" onclick="startScanner()">เปิดกล้องสแกน</button>
 
         <!-- พื้นที่แสดงช่องมองภาพของกล้อง -->
-        <div id="reader"></div>
+        <div id="reader" style="width: 100%; min-height: 250px;"></div>
 
-        <!-- พื้นที่แสดงผลลัพธ์ข้อความหรือลิงก์ -->
+        <!-- พื้นที่แสดงผลลัพธ์ -->
         <div class="result-container">
             <div class="result-title">ผลลัพธ์ที่ตรวจพบ:</div>
-            <div class="result-text" id="result">กำลังรอกล้อง...</div>
+            <div class="result-text" id="result">ยังไม่ได้เปิดกล้อง...</div>
         </div>
     </div>
 
     <script>
+        let html5QrCode;
+        let isProcessing = false;
+
+        function playBeepSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 1000;
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.15);
+            } catch (e) {
+                console.log("Audio context error", e);
+            }
+        }
+
         function onScanSuccess(decodedText, decodedResult) {
+            if (isProcessing) return;
+            isProcessing = true;
+
+            playBeepSound();
+
             const resultElement = document.getElementById('result');
-            
-            // ตรวจสอบว่าผลลัพธ์เป็น URL หรือไม่
             if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
                 resultElement.innerHTML = `<a href="${decodedText}" target="_blank" style="color: #2563eb; text-decoration: underline;">เปิดลิงก์: ${decodedText}</a>`;
             } else {
                 resultElement.innerText = decodedText;
             }
+
+            // หยุดสแกนชั่วคราวเป็นเวลา 3 วินาที เพื่อป้องกันการอ่านซ้ำซ้อน
+            setTimeout(() => {
+                isProcessing = false;
+            }, 3000);
         }
 
-        function onScanFailure(error) {
-            // ไม่ต้องแสดงข้อผิดพลาดขณะกำลังค้นหาโค้ดในแต่ละเฟรม
+        function startScanner() {
+            // สร้าง Instance ใหม่ของ Html5Qrcode โดยตรง
+            html5QrCode = new Html5Qrcode("reader");
+
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('result').innerText = 'กำลังเปิดกล้องหลัง...';
+
+            // สั่งเปิดกล้องโดยเจาะจงกล้องหลังด้วย "environment"
+            html5QrCode.start(
+                { facingMode: "environment" }, // บังคับใช้งานกล้องหลัง 📱
+                {
+                    fps: 10,    // อัตราสแกน 10 เฟรมต่อวินาที
+                    qrbox: { width: 250, height: 250 } // ขนาดกรอบเล็งสแกน
+                },
+                onScanSuccess
+            ).catch(err => {
+                document.getElementById('start-btn').style.display = 'inline-block';
+                document.getElementById('result').innerText = `❌ ไม่สามารถเข้าถึงกล้องหลังได้: ${err}`;
+                console.error("Error starting camera: ", err);
+            });
         }
-
-        // เริ่มต้นการทำงานของระบบสแกน
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader",
-            { 
-                fps: 10, 
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
-            },
-            /* verbose= */ false
-        );
-
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     </script>
 </body>
+
 </html>
