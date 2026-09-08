@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสแกน QR Code</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- ไลบรารี Html5-QRCode สำหรับประมวลผลการสแกนผ่านกล้อง -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Sarabun', sans-serif;
+        }
+        body {
+            background-color: #f1f5f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        .scanner-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #0f172a;
+            margin-bottom: 0.5rem;
+        }
+        p.subtext {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        #reader {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px dashed #cbd5e1;
+            margin-bottom: 1.5rem;
+        }
+        .result-container {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: left;
+            word-break: break-all;
+        }
+        .result-title {
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+        }
+        .result-text {
+            color: #2563eb;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanner-card">
+        <h1>📷 สแกน QR Code</h1>
+        <p class="subtext">กดอนุญาตการเข้าถึงกล้องเพื่อเริ่มสแกน</p>
+
+        <!-- พื้นที่แสดงช่องมองภาพของกล้อง -->
+        <div id="reader"></div>
+
+        <!-- พื้นที่แสดงผลลัพธ์ข้อความหรือลิงก์ -->
+        <div class="result-container">
+            <div class="result-title">ผลลัพธ์ที่ตรวจพบ:</div>
+            <div class="result-text" id="result">กำลังรอกล้อง...</div>
+        </div>
+    </div>
+
+    <script>
+        function onScanSuccess(decodedText, decodedResult) {
+            const resultElement = document.getElementById('result');
+            
+            // ตรวจสอบว่าผลลัพธ์เป็น URL หรือไม่
+            if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
+                resultElement.innerHTML = `<a href="${decodedText}" target="_blank" style="color: #2563eb; text-decoration: underline;">เปิดลิงก์: ${decodedText}</a>`;
+            } else {
+                resultElement.innerText = decodedText;
+            }
+        }
+
+        function onScanFailure(error) {
+            // ไม่ต้องแสดงข้อผิดพลาดขณะกำลังค้นหาโค้ดในแต่ละเฟรม
+        }
+
+        // เริ่มต้นการทำงานของระบบสแกน
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader",
+            { 
+                fps: 10, 
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            },
+            /* verbose= */ false
+        );
+
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    </script>
+</body>
+</html>
