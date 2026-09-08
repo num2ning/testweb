@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบสแกน QR Code (กล้องหลัง)</title>
+    <title>ระบบสแกน QR Code (มีเสียงเมื่อสแกนสำเร็จ)</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- ดึงไลบรารีหลักสำหรับประมวลผล -->
+    <!-- ไลบรารีสำหรับประมวลผลกล้อง -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         * {
@@ -81,12 +81,17 @@
             background-color: #2563eb;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 6px;
             font-size: 1rem;
             cursor: pointer;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
         }
     </style>
 </head>
@@ -94,12 +99,12 @@
 <body>
 
     <div class="scanner-card">
-        <h1>📷 สแกน QR Code (กล้องหลัง)</h1>
-        <p class="subtext">กรุณากดปุ่มเพื่อเปิดกล้องหลังและสแกน</p>
+        <h1>📷 สแกน QR Code</h1>
+        <p class="subtext">กดปุ่มด้านล่างเพื่อเปิดใช้งานกล้องหลังพร้อมระบบเสียง</p>
 
-        <button class="btn" id="start-btn" onclick="startScanner()">เปิดกล้องสแกน</button>
+        <button class="btn" id="start-btn" onclick="startScanner()">🔔 เปิดกล้องสแกน</button>
 
-        <!-- พื้นที่แสดงช่องมองภาพของกล้อง -->
+        <!-- พื้นที่แสดงกล้อง -->
         <div id="reader" style="width: 100%; min-height: 250px;"></div>
 
         <!-- พื้นที่แสดงผลลัพธ์ -->
@@ -113,29 +118,37 @@
         let html5QrCode;
         let isProcessing = false;
 
+        // 🔊 ฟังก์ชันสร้างเสียงบี๊บ (Beep Sound) อัตโนมัติด้วย Web Audio API
         function playBeepSound() {
             try {
+                // สร้างบริบทเสียงของเบราว์เซอร์
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
+
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
-                oscillator.type = 'sine';
-                oscillator.frequency.value = 1000;
-                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+                oscillator.type = 'sine'; // ชนิดคลื่นเสียงแบบนุ่มนวล
+                oscillator.frequency.value = 1200; // ความถี่เสียงติ๊ด (แหลมสูง)
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); // ตั้งระดับเสียงความดัง (15%)
+
                 oscillator.start();
-                oscillator.stop(audioCtx.currentTime + 0.15);
+                oscillator.stop(audioCtx.currentTime + 0.12); // เล่นเสียงนาน 0.12 วินาทีแล้วตัด
             } catch (e) {
-                console.log("Audio context error", e);
+                console.warn("ไม่สามารถเล่นเสียงได้เนื่องจากข้อจำกัดการโต้ตอบของเบราว์เซอร์:", e);
             }
         }
 
         function onScanSuccess(decodedText, decodedResult) {
+            // ป้องกันการทำงานซ้ำในขณะที่ยังหน่วงเวลาไม่เสร็จ
             if (isProcessing) return;
             isProcessing = true;
 
+            // 1. ส่งเสียงสัญญาณทันทีที่สแกนติด 🔔
             playBeepSound();
 
+            // 2. อัปเดตข้อมูลผลลัพธ์แสดงบนหน้าเว็บ
             const resultElement = document.getElementById('result');
             if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
                 resultElement.innerHTML = `<a href="${decodedText}" target="_blank" style="color: #2563eb; text-decoration: underline;">เปิดลิงก์: ${decodedText}</a>`;
@@ -143,30 +156,29 @@
                 resultElement.innerText = decodedText;
             }
 
-            // หยุดสแกนชั่วคราวเป็นเวลา 3 วินาที เพื่อป้องกันการอ่านซ้ำซ้อน
+            // 3. หน่วงเวลา 3 วินาทีก่อนที่จะเริ่มสแกนใหม่อีกครั้ง (ป้องกันเสียงดังรัวๆ ซ้อนกัน)
             setTimeout(() => {
                 isProcessing = false;
             }, 3000);
         }
 
         function startScanner() {
-            // สร้าง Instance ใหม่ของ Html5Qrcode โดยตรง
             html5QrCode = new Html5Qrcode("reader");
 
             document.getElementById('start-btn').style.display = 'none';
-            document.getElementById('result').innerText = 'กำลังเปิดกล้องหลัง...';
+            document.getElementById('result').innerText = 'กำลังเปิดกล้องหลังและระบบเสียง...';
 
-            // สั่งเปิดกล้องโดยเจาะจงกล้องหลังด้วย "environment"
+            // เริ่มการทำงานระบบด้วยกล้องหลัง
             html5QrCode.start(
-                { facingMode: "environment" }, // บังคับใช้งานกล้องหลัง 📱
+                { facingMode: "environment" }, // บังคับกล้องหลัง
                 {
-                    fps: 10,    // อัตราสแกน 10 เฟรมต่อวินาที
-                    qrbox: { width: 250, height: 250 } // ขนาดกรอบเล็งสแกน
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
                 },
                 onScanSuccess
             ).catch(err => {
                 document.getElementById('start-btn').style.display = 'inline-block';
-                document.getElementById('result').innerText = `❌ ไม่สามารถเข้าถึงกล้องหลังได้: ${err}`;
+                document.getElementById('result').innerText = `❌ เกิดข้อผิดพลาด: ${err}`;
                 console.error("Error starting camera: ", err);
             });
         }
