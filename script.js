@@ -2,6 +2,8 @@
 
 let html5QrCode;
 let isProcessing = false;
+
+// เปลี่ยนโครงสร้างตัวแปรเพื่อเก็บวัตถุประวัติ { text: 'ข้อมูล', time: 'เวลา' }
 let scanHistoryList = [];
 
 // 🔊 ฟังก์ชันสร้างเสียงแจ้งเตือน (Beep) แบบปรับแต่งโทนได้
@@ -32,7 +34,7 @@ function playBeepSound(type = 'success') {
     }
 }
 
-// ⏳ ดึงเวลาปัจจุบันในฟอร์แมต HH:MM:SS น.
+// ⏳ ดึงเวลาปัจจุบันของผู้ใช้ในฟอร์แมต HH:MM:SS น.
 function getCurrentTimeFormatted() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -41,30 +43,35 @@ function getCurrentTimeFormatted() {
     return `${hours}:${minutes}:${seconds} น.`;
 }
 
-// 🔄 อัปเดตตารางรายการประวัติ
+// 🔄 อัปเดตและแสดงตารางรายการประวัติ (Table Row Builder)
 function updateHistoryUI() {
     const tbody = document.getElementById('history-tbody');
-    tbody.innerHTML = '';
+    tbody.innerHTML = ''; // ล้างตารางเดิมเพื่อแสดงตารางอัปเดตใหม่
 
+    // ตรวจสอบว่ามีรายการในประวัติหรือไม่ หากไม่มีให้ใส่แถวว่าง
     if (scanHistoryList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ยังไม่มีประวัติการสแกนเข้าสู่ระบบ</td></tr>`;
         return;
     }
 
-    // วาดจากล่าสุดขึ้นข้างบน เพื่อความสะดวกในการตรวจทาน
+    // วาดแถวตารางย้อนกลับ (รายการสแกนล่าสุดจะเด้งไปแสดงอยู่ข้างบนสุดเพื่อให้อ่านง่าย)
+    // หากต้องการให้ของใหม่อยู่ล่างสุด ให้เปลี่ยนเป็นลูปแบบปกติได้ครับ
     for (let i = scanHistoryList.length - 1; i >= 0; i--) {
         const item = scanHistoryList[i];
 
         const row = document.createElement('tr');
 
+        // 1. คอลัมน์ ลำดับรายการ
         const cellIndex = document.createElement('td');
         cellIndex.className = 'col-index';
         cellIndex.innerText = i + 1;
 
+        // 2. คอลัมน์ ข้อความที่ตัดได้
         const cellData = document.createElement('td');
         cellData.className = 'col-data';
         cellData.innerText = item.text;
 
+        // 3. คอลัมน์ เวลาสแกน
         const cellTime = document.createElement('td');
         cellTime.className = 'col-time';
         cellTime.innerText = item.time;
@@ -77,13 +84,14 @@ function updateHistoryUI() {
     }
 }
 
-// 📥 ดาวน์โหลดประวัติเป็น .txt
+// 📥 ดาวน์โหลดประวัติทั้งหมดเป็นไฟล์ข้อความ (.txt)
 function downloadHistory() {
     if (scanHistoryList.length === 0) {
         alert("ยังไม่มีข้อมูลประวัติการสแกนให้ดาวน์โหลดครับ");
         return;
     }
 
+    // รวมข้อมูลเฉพาะส่วน 'รหัสข้อความที่ตัดแล้ว' คั่นด้วยการขึ้นบรรทัดใหม่
     const textContent = scanHistoryList.map(item => item.text).join('\n');
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -101,35 +109,12 @@ function downloadHistory() {
     URL.revokeObjectURL(url);
 }
 
-// 🚨 🚨 จัดการหน้าต่างป๊อปอัป (Popup Modal Logic) 🚨 🚨
-function showDuplicateModal(text) {
-    const modal = document.getElementById('duplicate-modal');
-    const messageEl = document.getElementById('modal-dup-message');
-
-    // ตั้งข้อความระบุรหัสตัวที่ซ้ำ
-    messageEl.innerHTML = `รหัสที่ดึงได้ <strong style="color:#ef4444; font-family: monospace;">"${text}"</strong> มีบันทึกในระบบประวัติเรียบร้อยแล้ว`;
-
-    // เปิดแสดงป๊อปอัป
-    modal.classList.add('active');
-}
-
-function closeDuplicateModal() {
-    const modal = document.getElementById('duplicate-modal');
-    modal.classList.remove('active');
-
-    // 🔓 ปลดล็อกระบบสแกนหลังจากที่ผู้ใช้กดปิดหน้าต่างแจ้งเตือนและนำแผ่นออกไปแล้ว
-    // ป้องกันการลูปภาพกล้องตัวเดิมซ้ำหลังป๊อปอัปปิด
-    setTimeout(() => {
-        isProcessing = false;
-    }, 1500);
-}
-
 // 🎯 ฟังก์ชันสแกนสำเร็จ
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
-    isProcessing = true; // ล็อกการทำงานทันที
+    isProcessing = true;
 
-    const startIndex = 8;
+    const startIndex = 8; // ข้อความตัวอักษรตำแหน่งที่ 9 (ดัชนี 8)
     const endIndex = 30;
     let extractedText = "";
 
@@ -138,35 +123,35 @@ function onScanSuccess(decodedText, decodedResult) {
     if (decodedText.length >= startIndex) {
         extractedText = decodedText.substring(startIndex, endIndex);
 
-        // 🔍 ตรวจสอบหาความซ้ำในประวัติ
+        // 🔍 ค้นหาค่าซ้ำภายในอาร์เรย์ (แมพหาเฉพาะฟิลด์ .text)
         const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
 
         if (isDuplicate) {
-            playBeepSound('warning'); // แจ้งเสียงเตือนซ้ำ
+            playBeepSound('warning'); // แจ้งเตือนเสียงทุ้มต่ำ
 
-            // แสดงผลลัพธ์บนจอเว็บแบบดั้งเดิมให้เห็น
             document.getElementById('result-all').innerText = decodedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ข้อความนี้สแกนไปแล้ว: ${extractedText}</span>`;
 
-            // 🚨 เรียกแสดงผลลัพธ์ผ่าน Popup หน้าจอ เพื่อให้ยืนยันตัวตน
-            showDuplicateModal(extractedText);
+            setTimeout(() => {
+                isProcessing = false;
+            }, 1000);
 
-            // ยุติการไหลของโปรแกรม (ไม่ปลดล็อก isProcessing จนกว่าจะคลิกปุ่มตกลง)
             return;
         }
 
-        // ✅ ผ่านเกณฑ์ ไม่ซ้ำในประวัติ (รหัสใหม่)
-        playBeepSound('success');
+        // ✅ ผ่านเกณฑ์ความซ้ำซ้อน (รหัสใหม่)
+        playBeepSound('success'); // แจ้งเตือนติ๊ดผ่านสำเร็จ
 
         document.getElementById('result-all').innerText = decodedText;
         splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
 
+        // เก็บทั้ง "ข้อความที่ตัดแล้ว" และ "เวลาปัจจุบันที่สแกนเสร็จ"
         scanHistoryList.push({
             text: extractedText,
             time: getCurrentTimeFormatted()
         });
 
-        updateHistoryUI();
+        updateHistoryUI(); // วาดตารางใหม่
 
     } else {
         playBeepSound('warning');
@@ -174,7 +159,7 @@ function onScanSuccess(decodedText, decodedResult) {
         splitElement.innerText = "❌ ข้อความสั้นเกินไป (ไม่ถึง 9 ตัวอักษร)";
     }
 
-    // สแกนรหัสผ่านสำเร็จ พักวงจรไว้ 2.5 วินาที เพื่อสลับแผ่นคิวอาร์แผ่นใหม่
+    // พักวงจรสแกน 2.5 วินาทีเพื่อเปิดโอกาสให้เลื่อนแผ่นรหัสใหม่เข้ามา
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
@@ -190,7 +175,7 @@ function startScanner() {
         onScanSuccess
     ).then(() => {
         document.getElementById('overlay').style.display = 'flex';
-        updateHistoryUI();
+        updateHistoryUI(); // วาดตารางว่างเปล่าเริ่มต้นเมื่อกล้องเปิดทำงานสำเร็จ
     }).catch(err => {
         document.getElementById('start-btn').style.display = 'inline-block';
         alert("❌ เปิดกล้องไม่สำเร็จ: " + err);

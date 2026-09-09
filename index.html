@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบสแกน QR Code พร้อมระบบแจ้งเตือนข้อมูลซ้ำ</title>
+    <title>ระบบสแกน QR Code เก็บประวัติระดับมืออาชีพ</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <!-- เรียกใช้งานไฟล์ไลบรารีในเครื่องเซิร์ฟเวอร์ -->
+    <!-- ไลบรารีกล้องในเครื่องเซิร์ฟเวอร์ -->
     <script src="code.js" type="text/javascript"></script>
     <style>
         * {
@@ -205,7 +205,7 @@
             font-size: 1.2rem;
         }
 
-        /* 📋 ส่วนตารางประวัติการทำงาน (History Table) */
+        /* 📋 ส่วนประวัติการทำงานดีไซน์ใหม่ (History Table UI) */
         .history-container {
             margin-top: 1.5rem;
             border: 1px solid #e2e8f0;
@@ -234,6 +234,7 @@
             font-size: 1rem;
         }
 
+        /* ตารางประวัติ */
         .history-table-wrapper {
             max-height: 240px;
             overflow-y: auto;
@@ -268,6 +269,8 @@
         table.history-table tr:nth-child(even) {
             background-color: #f8fafc;
         }
+
+        /* สลับแถวสีเทาอ่อน */
 
         .col-index {
             width: 15%;
@@ -329,105 +332,11 @@
             font-size: 0.85rem;
             padding: 6px 14px;
             border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.1);
         }
 
         .btn-download:hover {
             background-color: #059669;
-        }
-
-        /* 🚨 🚨 หน้าต่างแจ้งเตือนซ้ำซ้อน (Custom Notification PopUp CSS) 🚨 🚨 */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(15, 23, 42, 0.7);
-            /* โทนดำเงาโปร่งแสง */
-            backdrop-filter: blur(4px);
-            /* เพิ่มเอฟเฟกต์เบลอพื้นหลังกระจก */
-            z-index: 1000;
-            display: none;
-            /* เริ่มต้นด้วยการซ่อน */
-            justify-content: center;
-            align-items: center;
-            transition: all 0.3s ease-in-out;
-        }
-
-        .modal-box {
-            background-color: #ffffff;
-            border-radius: 20px;
-            padding: 2.25rem 2rem;
-            width: 90%;
-            max-width: 400px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            text-align: center;
-            transform: scale(0.9);
-            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        /* เมื่อเปิด Modal ให้เกิดเอฟเฟกต์ขยายตัว */
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-overlay.active .modal-box {
-            transform: scale(1);
-        }
-
-        .modal-icon {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
-            display: inline-block;
-            animation: pulseWarning 1.5s infinite;
-        }
-
-        @keyframes pulseWarning {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.1);
-            }
-
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        .modal-title {
-            color: #ef4444;
-            /* แดงอันตราย/แจ้งเตือน */
-            font-size: 1.3rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .modal-message {
-            color: #475569;
-            font-size: 1.05rem;
-            line-height: 1.5;
-            margin-bottom: 1.5rem;
-            word-break: break-all;
-        }
-
-        .btn-close-modal {
-            background-color: #ef4444;
-            color: #ffffff;
-            padding: 10px 24px;
-            border-radius: 8px;
-            border: none;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            width: 100%;
-            transition: background-color 0.2s;
-            box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
-        }
-
-        .btn-close-modal:hover {
-            background-color: #dc2626;
         }
     </style>
 </head>
@@ -436,13 +345,13 @@
 
     <div class="scanner-card">
         <h1>📷 สแกน QR และจัดระเบียบข้อมูล</h1>
-        <p class="subtext">ดึงข้อมูลเฉพาะกลุ่มตำแหน่ง 9-30 พร้อมระบบแจ้งเตือนกรณีสแกนรหัสซ้ำ</p>
+        <p class="subtext">ตัดดึงข้อมูลบางส่วน (ตำแหน่ง 9-30) แสดงผลและจัดเก็บอย่างสวยงาม</p>
 
         <div class="btn-group">
             <button class="btn btn-primary" id="start-btn" onclick="startScanner()">🔔 เริ่มเปิดใช้งานกล้อง</button>
         </div>
 
-        <!-- ส่วนช่องสแกนของกล้อง -->
+        <!-- ส่วนจำลองช่องสแกนของกล้อง -->
         <div class="scanner-wrapper">
             <div id="reader"></div>
             <div class="scan-overlay" id="overlay">
@@ -453,7 +362,7 @@
             </div>
         </div>
 
-        <!-- 1️⃣ แสดงผลการสแกนสด -->
+        <!-- 1️⃣ กล่องแสดงผลการสแกนปัจจุบัน -->
         <div class="result-container">
             <div class="result-row">
                 <div class="result-title">📡 ข้อความทั้งหมดจาก QR Code:</div>
@@ -465,7 +374,7 @@
             </div>
         </div>
 
-        <!-- 2️⃣ ตารางประวัติและบันทึกเวลาการสแกน -->
+        <!-- 2️⃣ ตารางประวัติและบันทึกเวลาการสแกน (History Table) -->
         <div class="history-container">
             <div class="history-header">
                 <span>📋 รายการประวัติสแกน</span>
@@ -481,19 +390,10 @@
                         </tr>
                     </thead>
                     <tbody id="history-tbody">
+                        <!-- รายการประวัติแบบแถวตารางจะถูกใส่ด้วย Javascript ตรงนี้ -->
                     </tbody>
                 </table>
             </div>
-        </div>
-    </div>
-
-    <!-- 🚨 🚨 หน้าต่างแจ้งเตือนโมดอลป๊อปอัปสแกนรหัสซ้ำ (Custom PopUp Modal HTML) 🚨 🚨 -->
-    <div class="modal-overlay" id="duplicate-modal">
-        <div class="modal-box">
-            <div class="modal-icon">⚠️</div>
-            <div class="modal-title">ตรวจพบข้อมูลซ้ำซ้อน!</div>
-            <div class="modal-message" id="modal-dup-message">รหัสสแกน "xxxx" มีอยู่ในประวัติแล้ว</div>
-            <button class="btn-close-modal" onclick="closeDuplicateModal()">ตกลง (รับทราบ)</button>
         </div>
     </div>
 
