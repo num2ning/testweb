@@ -15,14 +15,16 @@ function playBeepSound(type = 'success') {
         gainNode.connect(audioCtx.destination);
 
         if (type === 'success') {
+            // เสียงติ๊ดสูงสั้นๆ แสดงว่าผ่าน 👍
             oscillator.type = 'sine';
             oscillator.frequency.value = 1200;
             gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.12);
         } else if (type === 'warning') {
+            // เสียงทุ้มสั้นๆ แสดงว่าซ้ำหรือคำสั้นไป ⚠️
             oscillator.type = 'triangle';
-            oscillator.frequency.value = 300;
+            oscillator.frequency.value = 300; // เสียงทุ้มต่ำ
             gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.15);
@@ -32,59 +34,27 @@ function playBeepSound(type = 'success') {
     }
 }
 
-// ⏳ ดึงเวลาปัจจุบันในฟอร์แมต HH:MM:SS น.
-function getCurrentTimeFormatted() {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds} น.`;
-}
-
-// 🔄 อัปเดตตารางรายการประวัติ
 function updateHistoryUI() {
-    const tbody = document.getElementById('history-tbody');
-    tbody.innerHTML = '';
+    const ul = document.getElementById('history-ul');
+    ul.innerHTML = '';
 
-    if (scanHistoryList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ยังไม่มีประวัติการสแกนเข้าสู่ระบบ</td></tr>`;
-        return;
-    }
+    scanHistoryList.forEach(text => {
+        const li = document.createElement('li');
+        li.innerText = text;
+        ul.appendChild(li);
+    });
 
-    // วาดจากล่าสุดขึ้นข้างบน เพื่อความสะดวกในการตรวจทาน
-    for (let i = scanHistoryList.length - 1; i >= 0; i--) {
-        const item = scanHistoryList[i];
-
-        const row = document.createElement('tr');
-
-        const cellIndex = document.createElement('td');
-        cellIndex.className = 'col-index';
-        cellIndex.innerText = i + 1;
-
-        const cellData = document.createElement('td');
-        cellData.className = 'col-data';
-        cellData.innerText = item.text;
-
-        const cellTime = document.createElement('td');
-        cellTime.className = 'col-time';
-        cellTime.innerText = item.time;
-
-        row.appendChild(cellIndex);
-        row.appendChild(cellData);
-        row.appendChild(cellTime);
-
-        tbody.appendChild(row);
-    }
+    // เลื่อน Scrollbar ลงด้านล่างสุดเมื่อมีประวัติเพิ่มขึ้น
+    ul.scrollTop = ul.scrollHeight;
 }
 
-// 📥 ดาวน์โหลดประวัติเป็น .txt
 function downloadHistory() {
     if (scanHistoryList.length === 0) {
         alert("ยังไม่มีข้อมูลประวัติการสแกนให้ดาวน์โหลดครับ");
         return;
     }
 
-    const textContent = scanHistoryList.map(item => item.text).join('\n');
+    const textContent = scanHistoryList.join('\n');
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
 
@@ -101,80 +71,59 @@ function downloadHistory() {
     URL.revokeObjectURL(url);
 }
 
-// 🚨 🚨 จัดการหน้าต่างป๊อปอัป (Popup Modal Logic) 🚨 🚨
-function showDuplicateModal(text) {
-    const modal = document.getElementById('duplicate-modal');
-    const messageEl = document.getElementById('modal-dup-message');
-
-    // ตั้งข้อความระบุรหัสตัวที่ซ้ำ
-    messageEl.innerHTML = `รหัสที่ดึงได้ <strong style="color:#ef4444; font-family: monospace;">"${text}"</strong> มีบันทึกในระบบประวัติเรียบร้อยแล้ว`;
-
-    // เปิดแสดงป๊อปอัป
-    modal.classList.add('active');
-}
-
-function closeDuplicateModal() {
-    const modal = document.getElementById('duplicate-modal');
-    modal.classList.remove('active');
-
-    // 🔓 ปลดล็อกระบบสแกนหลังจากที่ผู้ใช้กดปิดหน้าต่างแจ้งเตือนและนำแผ่นออกไปแล้ว
-    // ป้องกันการลูปภาพกล้องตัวเดิมซ้ำหลังป๊อปอัปปิด
-    setTimeout(() => {
-        isProcessing = false;
-    }, 1500);
-}
-
-// 🎯 ฟังก์ชันสแกนสำเร็จ
+// 🎯 ฟังก์ชันจัดการผลลัพธ์การสแกน (แก้ไขตรรกะตรวจเช็คซ้ำอย่างเข้มงวด)
 function onScanSuccess(decodedText, decodedResult) {
+    // 🛡️ ชั้นป้องกันที่ 1: ตรวจสอบสถานะการประมวลผลก่อนเป็นอันดับแรกสุดเพื่อล็อกระบบ
     if (isProcessing) return;
-    isProcessing = true; // ล็อกการทำงานทันที
+    isProcessing = true;
 
-    const startIndex = 8;
+    // ดึงตำแหน่งของข้อมูลตัวอักษรที่ต้องการ (ตำแหน่งที่ 9 ถึง 30)
+    const startIndex = 8; // อิงตาม Index 8 (ซึ่งคือตัวอักษรตัวที่ 9)
     const endIndex = 30;
     let extractedText = "";
 
     const splitElement = document.getElementById('result-split');
 
     if (decodedText.length >= startIndex) {
+        // ตัดคำเฉพาะตำแหน่ง 9 ถึง 30 ออกมาก่อนทำการตรวจสอบใดๆ
         extractedText = decodedText.substring(startIndex, endIndex);
 
-        // 🔍 ตรวจสอบหาความซ้ำในประวัติ
-        const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
+        // 🛡️ ชั้นป้องกันที่ 2: ตรวจสอบหาความซ้ำซ้อนในประวัติ (History Array) ด้วยค่าที่ตัดออกมาแล้ว
+        if (scanHistoryList.includes(extractedText)) {
+            // 🚨 กรณีที่พบค่าซ้ำในระบบประวัติ:
+            playBeepSound('warning'); // แจ้งเตือนด้วยเสียงทุ้มต่ำ
 
-        if (isDuplicate) {
-            playBeepSound('warning'); // แจ้งเสียงเตือนซ้ำ
-
-            // แสดงผลลัพธ์บนจอเว็บแบบดั้งเดิมให้เห็น
+            // แสดงผลบนหน้าจอว่าซ้ำ
             document.getElementById('result-all').innerText = decodedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ข้อความนี้สแกนไปแล้ว: ${extractedText}</span>`;
 
-            // 🚨 เรียกแสดงผลลัพธ์ผ่าน Popup หน้าจอ เพื่อให้ยืนยันตัวตน
-            showDuplicateModal(extractedText);
+            // ปลดล็อคอย่างรวดเร็ว (1 วินาที) เพื่อเปิดโอกาสให้ผู้ใช้นำ QR Code แผ่นอื่นมาสแกนต่อได้ทันที
+            setTimeout(() => {
+                isProcessing = false;
+            }, 1000);
 
-            // ยุติการไหลของโปรแกรม (ไม่ปลดล็อก isProcessing จนกว่าจะคลิกปุ่มตกลง)
-            return;
+            return; // ⛔ ออกจากฟังก์ชันทันที โดยไม่นำค่าไปบันทึกลง History List
         }
 
-        // ✅ ผ่านเกณฑ์ ไม่ซ้ำในประวัติ (รหัสใหม่)
-        playBeepSound('success');
+        // ✅ กรณีผ่านการกรอง (เป็นค่าใหม่ ไม่ซ้ำแน่นอน):
+        playBeepSound('success'); // เล่นเสียงสแกนผ่านสำเร็จ
 
-        document.getElementById('result-all').innerText = decodedText;
-        splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
+        // อัปเดตข้อมูลการแสดงผลบนหน้าจอทั้ง 2 จุด
+        document.getElementById('result-all').innerText = decodedText; // จุดแสดงข้อความเต็ม
+        splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`; // จุดแสดงเฉพาะ 9-30
 
-        scanHistoryList.push({
-            text: extractedText,
-            time: getCurrentTimeFormatted()
-        });
-
+        // เพิ่มค่าใหม่ลงในประวัติและอัปเดตหน้าจอทันที
+        scanHistoryList.push(extractedText);
         updateHistoryUI();
 
     } else {
+        // กรณีความยาวตัวอักษรไม่ถึงเกณฑ์ที่กำหนด
         playBeepSound('warning');
         document.getElementById('result-all').innerText = decodedText;
         splitElement.innerText = "❌ ข้อความสั้นเกินไป (ไม่ถึง 9 ตัวอักษร)";
     }
 
-    // สแกนรหัสผ่านสำเร็จ พักวงจรไว้ 2.5 วินาที เพื่อสลับแผ่นคิวอาร์แผ่นใหม่
+    // หน่วงเวลาสแกนปกติ 2.5 วินาที เพื่อหลีกเลี่ยงสตรีมวีดิโอจับภาพซ้ำรัวๆ
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
@@ -190,7 +139,6 @@ function startScanner() {
         onScanSuccess
     ).then(() => {
         document.getElementById('overlay').style.display = 'flex';
-        updateHistoryUI();
     }).catch(err => {
         document.getElementById('start-btn').style.display = 'inline-block';
         alert("❌ เปิดกล้องไม่สำเร็จ: " + err);
