@@ -103,7 +103,7 @@ function onScanSuccess(decodedText, decodedResult) {
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง </span>`;
         setTimeout(() => {
             isProcessing = false;
         }, 1500);
@@ -157,7 +157,7 @@ function onScanSuccess(decodedText, decodedResult) {
     } else {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 22 ตัวอักษร)</span>`;
         setTimeout(() => {
             isProcessing = false;
         }, 1500);
