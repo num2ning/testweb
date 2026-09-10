@@ -1,4 +1,4 @@
-// script.js
+// script.js (ฉบับแก้ไขปัญหาหยุดสแกนเมื่อเจอค่าซ้ำและค่าผิดเงื่อนไข)
 
 let html5QrCode;
 let isProcessing = false;
@@ -106,20 +106,18 @@ function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
     isProcessing = true; // ล็อกระบบสแกนชั่วคราวเพื่อประมวลผลข้อมูล
 
-    // 1. ตัดช่องว่างหัวท้ายที่อาจติดมาในรหัส QR
+    // 1. ดักสิทธิและตัดช่องว่างหัวท้ายที่อาจติดมาในรหัส QR
     const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
 
-    // 🛡️ ตรวจเช็คค่าว่าง
+    // 🛡️ ป้องกันค่าว่างดิบ
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
 
-        // ปลดล็อกระบบเร็ว (1.5 วินาที)
-        setTimeout(() => {
-            isProcessing = false;
-        }, 1500);
+        // 🔄 ปลดล็อกกล้องและเริ่มสแกนต่อทันที
+        resumeScanning(1500);
         return;
     }
 
@@ -137,10 +135,8 @@ function onScanSuccess(decodedText, decodedResult) {
             document.getElementById('result-all').innerText = cleanedText;
             splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อมูลไม่ตรงมาตรฐาน (${digitCount} Digits / ต้องการ 22)</span>`;
 
-            // ข้อมูลไม่ได้ขนาด ปลดล็อกระบบภายใน 1.5 วินาที
-            setTimeout(() => {
-                isProcessing = false;
-            }, 1500);
+            // 🔄 ข้อมูลไม่ได้ขนาด ปลดล็อกกล้องและเริ่มสแกนต่อ
+            resumeScanning(1500);
             return;
         }
 
@@ -153,12 +149,8 @@ function onScanSuccess(decodedText, decodedResult) {
             document.getElementById('result-all').innerText = cleanedText;
             splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
 
-            // 🔓 [จุดแก้ไขหลัก] ไม่ค้างระบบ! เมื่อตรวจพบข้อมูลซ้ำ จะแช่ข้อความแจ้งเตือนสีแดงไว้ 1.5 วินาที 
-            // แล้วทำการปลดล็อก (isProcessing = false) เพื่อให้สแกนแผ่นถัดไปได้อย่างอิสระโดยไม่ต้องคลิกปุ่มใดๆ
-            setTimeout(() => {
-                isProcessing = false;
-                console.log("ล้างสถานะล็อกพร้อมสแกนแผ่นถัดไปแล้ว");
-            }, 1500);
+            // 🔄 ตรวจพบรหัสซ้ำ ปลดล็อกกล้องให้ทำงานต่ออัตโนมัติภายใน 1.5 วินาที
+            resumeScanning(1500);
             return;
         }
 
@@ -180,16 +172,30 @@ function onScanSuccess(decodedText, decodedResult) {
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร)</span>`;
 
-        setTimeout(() => {
-            isProcessing = false;
-        }, 1500);
+        // 🔄 ปลดล็อกกล้องและเริ่มสแกนต่อ
+        resumeScanning(1500);
         return;
     }
 
-    // กรณีสแกนค่าใหม่ผ่านสำเร็จ หน่วงเวลาสแกน 2.5 วินาที เพื่อให้มีเวลาสลับแผ่น QR Code
+    // กรณีสแกนค่าใหม่ผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที เพื่อไม่ให้จับภาพแผ่นเดิมทันที
+    resumeScanning(2500);
+}
+
+// 🔄 ฟังก์ชันช่วยตื่นตัวกล้องและปลดล็อกระบบ (ลบล้างอาการค้าง)
+function resumeScanning(delayTime) {
     setTimeout(() => {
         isProcessing = false;
-    }, 2500);
+
+        // 🚨 สั่งให้ html5QrCode ทำการสแกนจับเฟรมวิดีโอต่อโดยตรง (Resume scanning)
+        if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
+            try {
+                html5QrCode.resume();
+                console.log("สตรีมกล้องกลับมาพร้อมทำงานต่อแล้ว...");
+            } catch (err) {
+                console.error("Resume failed: ", err);
+            }
+        }
+    }, delayTime);
 }
 
 // 🎥 เริ่มสแกนกล้อง
@@ -200,7 +206,7 @@ function startScanner() {
         if (devices && devices.length) {
             html5QrCode = new Html5Qrcode("reader");
 
-            // ลองเปิดกล้องหลังก่อน (Facing Environment)
+            // ลองเปิดกล้องหลังก่อน
             html5QrCode.start(
                 { facingMode: "environment" },
                 { fps: 15, qrbox: { width: 250, height: 250 } },
@@ -209,7 +215,6 @@ function startScanner() {
                 document.getElementById('overlay').style.display = 'flex';
                 updateHistoryUI();
             }).catch(err => {
-                // หากไม่มีกล้องหลัง (เช่น ใช้คอมพิวเตอร์ทั่วไป) ให้สลับไปใช้กล้องตัวแรก
                 console.warn("ไม่พบกล้องหลัง กำลังใช้งานกล้องตัวแรกสุด...", err);
 
                 html5QrCode.start(
