@@ -169,7 +169,6 @@ function onScanSuccess(decodedText, decodedResult) {
     }, 2500);
 }
 
-
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
 
@@ -178,16 +177,11 @@ function startScanner() {
             html5QrCode = new Html5Qrcode("reader");
 
 
-
-
             const config = {
                 fps: 30,
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
-                disableFlip: false //,
-
-
-                //formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+                disableFlip: false
             };
 
 
@@ -230,6 +224,7 @@ function startScanner() {
         alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง\nรายละเอียด: " + err);
     });
 }
+
 
 
 function clearHistory() {
