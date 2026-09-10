@@ -157,7 +157,7 @@ function onScanSuccess(decodedText, decodedResult) {
     } else {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 22 ตัวอักษร)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความที่ได้สั้นเกินไป (สั้นกว่า 22 ตัวอักษร)</span>`;
         setTimeout(() => {
             isProcessing = false;
         }, 1500);
@@ -209,7 +209,7 @@ function startScanner() {
 }
 
 function clearHistory() {
-    const confirmClear = confirm("คุณต้องการล้างรายการครุภัณฑ์ที่สแกนได้ทั้งหมดใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
+    const confirmClear = confirm("คุณต้องการลบรายการครุภัณฑ์ที่สแกนได้ทั้งหมดใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
 
     if (confirmClear) {
         scanHistoryList = [];
