@@ -168,7 +168,7 @@ function onScanSuccess(decodedText, decodedResult) {
         isProcessing = false;
     }, 2500);
 }
-
+// 🎥 เริ่มสแกนกล้อง (อัปเกรดความเร็ว)
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
 
@@ -176,21 +176,21 @@ function startScanner() {
         if (devices && devices.length) {
             html5QrCode = new Html5Qrcode("reader");
 
-
+            // การตั้งค่าความเร็ว (Performance Settings)
             const config = {
-                fps: 30,
+                fps: 30, // ⚡ อัปเกรดจาก 10-15 เป็น 30 เฟรมต่อวินาที เพื่อให้อ่านภาพได้ถี่ขึ้น
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
-                disableFlip: false
+                disableFlip: false // ยอมให้แสกนภาพกลับด้านได้ (เผื่อกรณีมุมกล้องกลับด้าน)
             };
 
-
+            // ลองเปิดกล้องหลังก่อน
             html5QrCode.start(
                 {
-                    facingMode: "environment",
-
+                    facingMode: "environment", // บังคับกล้องหลัง
+                    // แนะนำความละเอียดที่เหมาะสม (ไม่ละเอียดเกินไปจนช้า ไม่เบลอเกินไปจนอ่านไม่ออก)
                     videoConstraints: {
-                        width: { ideal: 1280 },
+                        width: { ideal: 1280 }, // ความละเอียด HD 720p ก็เพียงพอ
                         height: { ideal: 720 }
                     }
                 },
@@ -224,6 +224,7 @@ function startScanner() {
         alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง\nรายละเอียด: " + err);
     });
 }
+
 
 
 
