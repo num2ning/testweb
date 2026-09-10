@@ -42,7 +42,7 @@ function updateHistoryUI() {
     tbody.innerHTML = '';
 
     if (scanHistoryList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ยังไม่มีประวัติการสแกนเข้าสู่ระบบ</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ยังไม่มีรายการสแกนเข้าสู่ระบบ</td></tr>`;
         return;
     }
 
@@ -73,7 +73,7 @@ function updateHistoryUI() {
 
 function downloadHistory() {
     if (scanHistoryList.length === 0) {
-        alert("ยังไม่มีข้อมูลประวัติการสแกนให้ดาวน์โหลดครับ");
+        alert("ไม่มีข้อมูล");
         return;
     }
 
@@ -221,7 +221,7 @@ function clearHistory() {
 
         playBeepSound('warning');
 
-        console.log("ล้างประวัติการสแกนทั้งหมดเรียบร้อยแล้ว");
+        console.log("ล้างรายการครุภัณฑ์ทั้งหมดเรียบร้อยแล้ว");
     }
 }
 
