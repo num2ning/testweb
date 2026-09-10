@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบสแกน QR Code เก็บประวัติระดับมืออาชีพ</title>
+    <title>CGD QR Connect - ระบบสแกนและบันทึกข้อมูล</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <!-- ไลบรารีกล้องในเครื่องเซิร์ฟเวอร์ -->
+    <!-- เรียกใช้งานไฟล์ไลบรารีในเครื่องเซิร์ฟเวอร์ -->
     <script src="code.js" type="text/javascript"></script>
     <style>
         * {
@@ -18,47 +18,55 @@
         }
 
         body {
-            background-color: #f8fafc;
+            background-color: #f7f8fa;
+            color: #333;
             display: flex;
             justify-content: center;
             align-items: flex-start;
             min-height: 100vh;
-            padding: 2rem 1rem;
-            color: #1e293b;
+            padding: 2.5rem 1rem;
         }
 
-        .scanner-card {
-            background: #ffffff;
-            border-radius: 20px;
-            padding: 2rem;
+        .main-container {
             width: 100%;
-            max-width: 550px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 600px;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 2rem 2.5rem;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             text-align: center;
         }
 
-        h1 {
-            font-size: 1.6rem;
-            color: #0f172a;
-            margin-bottom: 0.5rem;
-            font-weight: 700;
+        .header-section {
+            margin-bottom: 2rem;
         }
 
-        p.subtext {
-            color: #64748b;
-            font-size: 0.95rem;
-            margin-bottom: 1.5rem;
+        .header-section img {
+            width: 70px;
+            height: 70px;
+            margin-bottom: 1rem;
         }
 
-        /* 📦 กล่องกล้องและกรอบโฟกัส */
+        .header-section h1 {
+            font-size: 1.75rem;
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .header-section p {
+            font-size: 1rem;
+            color: #6b7280;
+        }
+
+        /* 📦 ส่วนกล่องควบคุมกล้อง */
         .scanner-wrapper {
             position: relative;
             width: 100%;
-            border-radius: 14px;
+            border-radius: 8px;
             overflow: hidden;
             margin-bottom: 1.5rem;
             background: #000000;
-            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
         }
 
         #reader {
@@ -85,19 +93,20 @@
             width: 250px;
             height: 250px;
             border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.5);
         }
 
+        /* สีกรอบมุมเล็งสีน้ำเงินกรมท่าทางการ */
         .focus-box::before,
         .focus-box::after,
         .focus-corner-bottom::before,
         .focus-corner-bottom::after {
             content: "";
             position: absolute;
-            width: 28px;
+            width: 24px;
             height: 24px;
-            border-color: #10b981;
+            border-color: #3b82f6;
             border-style: solid;
             pointer-events: none;
         }
@@ -105,15 +114,15 @@
         .focus-box::before {
             top: -2px;
             left: -2px;
-            border-width: 5px 0 0 5px;
-            border-top-left-radius: 12px;
+            border-width: 4px 0 0 4px;
+            border-top-left-radius: 8px;
         }
 
         .focus-box::after {
             top: -2px;
             right: -2px;
-            border-width: 5px 5px 0 0;
-            border-top-right-radius: 12px;
+            border-width: 4px 4px 0 0;
+            border-top-right-radius: 8px;
         }
 
         .focus-corner-bottom {
@@ -127,24 +136,24 @@
         .focus-corner-bottom::before {
             bottom: -2px;
             left: -2px;
-            border-width: 0 0 5px 5px;
-            border-bottom-left-radius: 12px;
+            border-width: 0 0 4px 4px;
+            border-bottom-left-radius: 8px;
         }
 
         .focus-corner-bottom::after {
             bottom: -2px;
             right: -2px;
-            border-width: 0 5px 5px 0;
-            border-bottom-right-radius: 12px;
+            border-width: 0 4px 4px 0;
+            border-bottom-right-radius: 8px;
         }
 
         .scan-laser {
             position: absolute;
             left: 5%;
             width: 90%;
-            height: 3px;
-            background: linear-gradient(to right, transparent, #ef4444, transparent);
-            box-shadow: 0 0 10px #ef4444;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #3b82f6, transparent);
+            box-shadow: 0 0 8px #3b82f6;
             animation: laserScan 2s linear infinite;
         }
 
@@ -162,11 +171,11 @@
             }
         }
 
-        /* 📝 ส่วนแสดงผลการสแกนสด */
+        /* 📝 กล่องแสดงผลลัพธ์ */
         .result-container {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             padding: 1.25rem;
             text-align: left;
             word-break: break-all;
@@ -182,11 +191,10 @@
         }
 
         .result-title {
-            font-weight: 700;
-            color: #64748b;
-            font-size: 0.8rem;
+            font-weight: 600;
+            color: #4b5563;
+            font-size: 0.85rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
 
         .result-value {
@@ -195,33 +203,32 @@
         }
 
         .text-full {
-            color: #334155;
+            color: #374151;
             font-weight: 500;
         }
 
         .text-extracted {
-            color: #10b981;
+            color: #1d4ed8;
             font-weight: 700;
             font-size: 1.2rem;
         }
 
-        /* 📋 ส่วนประวัติการทำงานดีไซน์ใหม่ (History Table UI) */
+        /* 📋 กล่องรายการประวัติ (History Table) */
         .history-container {
             margin-top: 1.5rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             background: #ffffff;
             text-align: left;
             overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
 
         .history-header {
-            background: #f1f5f9;
-            padding: 1rem 1.25rem;
-            font-weight: 700;
-            color: #334155;
-            border-bottom: 1px solid #e2e8f0;
+            background: #f9fafb;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 1px solid #e5e7eb;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -231,10 +238,9 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
         }
 
-        /* ตารางประวัติ */
         .history-table-wrapper {
             max-height: 240px;
             overflow-y: auto;
@@ -246,20 +252,10 @@
             font-size: 0.95rem;
         }
 
-        table.history-table th {
-            background-color: #f8fafc;
-            padding: 0.75rem 1rem;
-            font-weight: 600;
-            color: #64748b;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
         table.history-table td {
-            padding: 0.85rem 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            color: #334155;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
         }
 
         table.history-table tr:last-child td {
@@ -267,34 +263,32 @@
         }
 
         table.history-table tr:nth-child(even) {
-            background-color: #f8fafc;
+            background-color: #f9fafb;
         }
-
-        /* สลับแถวสีเทาอ่อน */
 
         .col-index {
             width: 15%;
             text-align: center;
-            font-weight: 600;
-            color: #94a3b8;
+            font-weight: 500;
+            color: #9ca3af;
         }
 
         .col-data {
             width: 55%;
             font-family: monospace;
-            font-weight: 700;
-            color: #0f172a;
-            font-size: 1.05rem;
+            font-weight: 600;
+            color: #111827;
+            font-size: 1rem;
         }
 
         .col-time {
             width: 30%;
             text-align: right;
-            color: #64748b;
+            color: #6b7280;
             font-size: 0.85rem;
         }
 
-        /* 🔘 ปุ่มควบคุม */
+        /* 🔘 กลุ่มปุ่มควบคุม */
         .btn-group {
             display: flex;
             gap: 0.5rem;
@@ -303,8 +297,8 @@
         }
 
         .btn {
-            padding: 12px 24px;
-            border-radius: 8px;
+            padding: 10px 20px;
+            border-radius: 6px;
             font-size: 1rem;
             border: none;
             cursor: pointer;
@@ -315,107 +309,110 @@
             gap: 8px;
         }
 
+        /* ปุ่มเปิดกล้องหลักสีน้ำเงิน */
         .btn-primary {
-            background-color: #2563eb;
+            background-color: #3b82f6;
             color: white;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
         }
 
         .btn-primary:hover {
-            background-color: #1d4ed8;
-            transform: translateY(-1px);
+            background-color: #2563eb;
         }
 
+        /* ปุ่มดาวน์โหลดไฟล์เทาอ่อน */
         .btn-download {
-            background-color: #10b981;
-            color: white;
-            font-size: 0.85rem;
-            padding: 6px 14px;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.1);
+            background-color: #f9fafb;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 4px;
         }
 
         .btn-download:hover {
-            background-color: #059669;
+            background-color: #f3f4f6;
         }
 
+        /* ปุ่มล้างประวัติสีแดง */
         .btn-clear {
-            background-color: #ef4444;
-            /* สีแดงสว่าง */
-            color: white;
-            font-size: 0.85rem;
-            padding: 6px 14px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer
+            background-color: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-clear:hover {
+            background-color: #fecaca;
         }
     </style>
 </head>
 
 <body>
-
-    <div class="scanner-card">
-        <h1>📷 สแกน QR และจัดระเบียบข้อมูล</h1>
-        <p class="subtext">ตัดดึงข้อมูลบางส่วน (ตำแหน่ง 9-30) แสดงผลและจัดเก็บอย่างสวยงาม</p>
-
-        <div class="btn-group">
-            <button class="btn btn-primary" id="start-btn" onclick="startScanner()">🔔 เริ่มเปิดใช้งานกล้อง</button>
+    <div class="main-container">
+        <!-- ส่วนโลโก้และชื่อระบบ -->
+        <div class="header-section">
+            <img src="https://www.cgd.go.th/assets/images/logo-cgd.png" alt="CGD Logo">
+            <h1>CGD QR Connect</h1>
+            <p>ระบบสแกน QR Code พร้อมตรวจสอบความสมบูรณ์ข้อมูล</p>
         </div>
-        <div class="result-row" style="border-top: 1px solid #e2e8f0; padding-top: 0.6rem; margin-top: 0.6rem;">
-            <div class="result-title">✂️ รหัสคัดกรองเฉพาะกลุ่ม (9-30):</div>
-            <div class="result-value text-extracted" id="result-split">-</div>
-        </div>
-        <!-- ส่วนจำลองช่องสแกนของกล้อง -->
-        <div class="scanner-wrapper">
-            <div id="reader"></div>
-            <div class="scan-overlay" id="overlay">
-                <div class="focus-box">
-                    <div class="scan-laser"></div>
-                    <div class="focus-corner-bottom"></div>
+
+        <div id="scanner-section">
+            <!-- 🔘 ปุ่มสำหรับกดเปิดกล้อง -->
+            <div class="btn-group">
+                <button class="btn btn-primary" id="start-btn" onclick="startScanner()">📷 เริ่มต้นสแกนข้อมูล</button>
+            </div>
+
+            <!-- หน้าต่างสตรีมภาพกล้อง -->
+            <div class="scanner-wrapper">
+                <div id="reader"></div>
+                <div class="scan-overlay" id="overlay">
+                    <div class="focus-box">
+                        <div class="scan-laser"></div>
+                        <div class="focus-corner-bottom"></div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 1️⃣ กล่องแสดงผลการสแกนปัจจุบัน -->
-        <div class="result-container">
-            <div class="result-row">
-                <div class="result-title">📡 ข้อความทั้งหมดจาก QR Code:</div>
-                <div class="result-value text-full" id="result-all">กำลังรอเปิดกล้องเพื่อสแกน...</div>
-            </div>
-
-        </div>
-
-        <!-- 2️⃣ ตารางประวัติและบันทึกเวลาการสแกน (History Table) -->
-        <!-- ค้นหาโค้ดส่วนนี้ใน index.html เดิมของคุณ -->
-        <div class="history-container">
-            <div class="history-header">
-                <span>📋 รายการประวัติสแกน</span>
-
-                <!-- 🎯 เพิ่มปุ่มล้างประวัติ (สีแดง) ไว้ข้างๆ ปุ่มดาวน์โหลดเดิม -->
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn-clear" onclick="clearHistory()">🗑️ ล้างประวัติ</button>
-                    <button class="btn btn-download" onclick="downloadHistory()">📥 ดาวน์โหลดไฟล์ .txt</button>
+            <!-- ส่วนแสดงสถานะการอ่านรอบปัจจุบัน -->
+            <div class="result-container">
+                <div class="result-row">
+                    <div class="result-title">ข้อมูลดิบทั้งหมด (Raw Data):</div>
+                    <div class="result-value text-full" id="result-all">กำลังรอเปิดกล้องเพื่อสแกน...</div>
+                </div>
+                <div class="result-row"
+                    style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; margin-top: 0.75rem;">
+                    <div class="result-title">รหัสที่คัดกรอง (Extracted ID):</div>
+                    <div class="result-value text-extracted" id="result-split">-</div>
                 </div>
             </div>
-            <div class="history-table-wrapper">
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th style="text-align: center;">ลำดับ</th>
-                            <th style="text-align: left;">รหัสที่ตัดได้ (9-30)</th>
-                            <th style="text-align: right;">เวลาสแกน</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-tbody">
-                    </tbody>
-                </table>
+
+            <!-- ส่วนของประวัติและการดาวน์โหลด / เคลียร์ค่า -->
+            <div class="history-container">
+                <div class="history-header">
+                    <span>📋 ประวัติการทำงาน</span>
+                    <div style="display: flex; gap: 6px;">
+                        <!-- 🗑️ ปุ่มล้างประวัติ (Clear) และ 📥 ดาวน์โหลด (Download) -->
+                        <button class="btn-clear" onclick="clearHistory()">🗑️ ล้างประวัติ</button>
+                        <button class="btn btn-download" onclick="downloadHistory()">📥 ดาวน์โหลด</button>
+                    </div>
+                </div>
+                <div class="history-table-wrapper">
+                    <table class="history-table">
+                        <tbody id="history-tbody">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- เรียกใช้งาน Script ควบคุมภายนอก -->
+    <!-- เรียกใช้งาน JavaScript ภายนอก -->
     <script src="script.js"></script>
-
 </body>
 
 </html>
