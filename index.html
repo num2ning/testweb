@@ -351,7 +351,7 @@
             <button class="btn btn-primary" id="start-btn" onclick="startScanner()">🔔 เริ่มเปิดใช้งานกล้อง</button>
         </div>
         <div class="result-row" style="border-top: 1px solid #e2e8f0; padding-top: 0.6rem; margin-top: 0.6rem;">
-            <div class="result-title">✂️ รหัสครุภัณฑ์ AFMIS:</div>
+            <div class="result-title">✂️ รหัสคัดกรองเฉพาะกลุ่ม (9-30):</div>
             <div class="result-value text-extracted" id="result-split">-</div>
         </div>
         <!-- ส่วนจำลองช่องสแกนของกล้อง -->
@@ -375,10 +375,16 @@
         </div>
 
         <!-- 2️⃣ ตารางประวัติและบันทึกเวลาการสแกน (History Table) -->
+        <!-- ค้นหาโค้ดส่วนนี้ใน index.html เดิมของคุณ -->
         <div class="history-container">
             <div class="history-header">
                 <span>📋 รายการประวัติสแกน</span>
-                <button class="btn btn-download" onclick="downloadHistory()">📥 ดาวน์โหลดไฟล์ .txt</button>
+
+                <!-- 🎯 เพิ่มปุ่มล้างประวัติ (สีแดง) ไว้ข้างๆ ปุ่มดาวน์โหลดเดิม -->
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-clear" onclick="clearHistory()">🗑️ ล้างประวัติ</button>
+                    <button class="btn btn-download" onclick="downloadHistory()">📥 ดาวน์โหลดไฟล์ .txt</button>
+                </div>
             </div>
             <div class="history-table-wrapper">
                 <table class="history-table">
@@ -390,7 +396,6 @@
                         </tr>
                     </thead>
                     <tbody id="history-tbody">
-                        <!-- รายการประวัติแบบแถวตารางจะถูกใส่ด้วย Javascript ตรงนี้ -->
                     </tbody>
                 </table>
             </div>
