@@ -5,369 +5,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CGD QR Connect - ระบบสแกนและบันทึกข้อมูล</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
-    <!-- เรียกใช้งานไฟล์ไลบรารีในเครื่องเซิร์ฟเวอร์ -->
+    <!--<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"> -->
+
+    <!-- 🎨 เรียกใช้งาน Stylesheet ภายนอก -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style2.css">
+
+
+
+    <!-- เรียกใช้งานไฟล์ไลบรารี -->
     <script src="code.js" type="text/javascript"></script>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Sarabun', sans-serif;
-        }
 
-        body {
-            background-color: #f7f8fa;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            padding: 2.5rem 1rem;
-        }
-
-        .main-container {
-            width: 100%;
-            max-width: 600px;
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 2rem 2.5rem;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            text-align: center;
-        }
-
-        .header-section {
-            margin-bottom: 2rem;
-        }
-
-        .header-section img {
-            width: 70px;
-            height: 70px;
-            margin-bottom: 1rem;
-        }
-
-        .header-section h1 {
-            font-size: 1.75rem;
-            color: #111827;
-            font-weight: 600;
-        }
-
-        .header-section p {
-            font-size: 1rem;
-            color: #6b7280;
-        }
-
-        /* 📦 ส่วนกล่องควบคุมกล้อง */
-        .scanner-wrapper {
-            position: relative;
-            width: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-            background: #000000;
-        }
-
-        #reader {
-            width: 100%;
-            min-height: 280px;
-            border: none !important;
-        }
-
-        .scan-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-        }
-
-        .focus-box {
-            position: relative;
-            width: 250px;
-            height: 250px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.5);
-        }
-
-        /* สีกรอบมุมเล็งสีน้ำเงินกรมท่าทางการ */
-        .focus-box::before,
-        .focus-box::after,
-        .focus-corner-bottom::before,
-        .focus-corner-bottom::after {
-            content: "";
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            border-color: #3b82f6;
-            border-style: solid;
-            pointer-events: none;
-        }
-
-        .focus-box::before {
-            top: -2px;
-            left: -2px;
-            border-width: 4px 0 0 4px;
-            border-top-left-radius: 8px;
-        }
-
-        .focus-box::after {
-            top: -2px;
-            right: -2px;
-            border-width: 4px 4px 0 0;
-            border-top-right-radius: 8px;
-        }
-
-        .focus-corner-bottom {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-
-        .focus-corner-bottom::before {
-            bottom: -2px;
-            left: -2px;
-            border-width: 0 0 4px 4px;
-            border-bottom-left-radius: 8px;
-        }
-
-        .focus-corner-bottom::after {
-            bottom: -2px;
-            right: -2px;
-            border-width: 0 4px 4px 0;
-            border-bottom-right-radius: 8px;
-        }
-
-        .scan-laser {
-            position: absolute;
-            left: 5%;
-            width: 90%;
-            height: 2px;
-            background: linear-gradient(to right, transparent, #3b82f6, transparent);
-            box-shadow: 0 0 8px #3b82f6;
-            animation: laserScan 2s linear infinite;
-        }
-
-        @keyframes laserScan {
-            0% {
-                top: 5%;
-            }
-
-            50% {
-                top: 95%;
-            }
-
-            100% {
-                top: 5%;
-            }
-        }
-
-        /* 📝 กล่องแสดงผลลัพธ์ */
-        .result-container {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 1.25rem;
-            text-align: left;
-            word-break: break-all;
-            margin-bottom: 1.5rem;
-        }
-
-        .result-row {
-            margin-bottom: 0.75rem;
-        }
-
-        .result-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .result-title {
-            font-weight: 600;
-            color: #4b5563;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-        }
-
-        .result-value {
-            font-size: 1rem;
-            margin-top: 0.25rem;
-        }
-
-        .text-full {
-            color: #374151;
-            font-weight: 500;
-        }
-
-        .text-extracted {
-            color: #1d4ed8;
-            font-weight: 700;
-            font-size: 1.2rem;
-        }
-
-        /* 📋 กล่องรายการประวัติ (History Table) */
-        .history-container {
-            margin-top: 1.5rem;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            background: #ffffff;
-            text-align: left;
-            overflow: hidden;
-        }
-
-        .history-header {
-            background: #f9fafb;
-            padding: 0.75rem 1rem;
-            font-weight: 600;
-            color: #374151;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .history-header span {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.95rem;
-        }
-
-        .history-table-wrapper {
-            max-height: 240px;
-            overflow-y: auto;
-        }
-
-        table.history-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95rem;
-        }
-
-        table.history-table td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #f3f4f6;
-            color: #374151;
-        }
-
-        table.history-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        table.history-table tr:nth-child(even) {
-            background-color: #f9fafb;
-        }
-
-        .col-index {
-            width: 15%;
-            text-align: center;
-            font-weight: 500;
-            color: #9ca3af;
-        }
-
-        .col-data {
-            width: 55%;
-            font-family: monospace;
-            font-weight: 600;
-            color: #111827;
-            font-size: 1rem;
-        }
-
-        .col-time {
-            width: 30%;
-            text-align: right;
-            color: #6b7280;
-            font-size: 0.85rem;
-        }
-
-        /* 🔘 กลุ่มปุ่มควบคุม */
-        .btn-group {
-            display: flex;
-            gap: 0.5rem;
-            justify-content: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-size: 1rem;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* ปุ่มเปิดกล้องหลักสีน้ำเงิน */
-        .btn-primary {
-            background-color: #3b82f6;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #2563eb;
-        }
-
-        /* ปุ่มดาวน์โหลดไฟล์เทาอ่อน */
-        .btn-download {
-            background-color: #f9fafb;
-            color: #374151;
-            border: 1px solid #d1d5db;
-            font-size: 0.8rem;
-            padding: 5px 12px;
-            border-radius: 4px;
-        }
-
-        .btn-download:hover {
-            background-color: #f3f4f6;
-        }
-
-        /* ปุ่มล้างประวัติสีแดง */
-        .btn-clear {
-            background-color: #fee2e2;
-            color: #dc2626;
-            border: 1px solid #fca5a5;
-            font-size: 0.8rem;
-            padding: 5px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-
-        .btn-clear:hover {
-            background-color: #fecaca;
-        }
-    </style>
 </head>
 
 <body>
     <div class="main-container">
-        <!-- ส่วนโลโก้และชื่อระบบ -->
         <div class="header-section">
-            <img src="https://www.cgd.go.th/assets/images/logo-cgd.png" alt="CGD Logo">
-            <h1>CGD QR Connect</h1>
-            <p>ระบบสแกน QR Code พร้อมตรวจสอบความสมบูรณ์ข้อมูล</p>
+            <img src="images/logo.jpg" alt="CGD Logo">
+            <h1>CGD QR SCANNER</h1>
+            <p>ระบบสแกน QR Code ครุภัณฑ์ในระบบ AFMIS</p>
+        </div>
+        <div class="result-row" style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; margin-top: 0.75rem;">
+            <div class="result-title">รหัสครุภัณฑ์ AFMIS :</div>
+            <div class="result-value text-extracted" id="result-split">-</div>
         </div>
 
         <div id="scanner-section">
-            <!-- 🔘 ปุ่มสำหรับกดเปิดกล้อง -->
-            <div class="btn-group">
-                <button class="btn btn-primary" id="start-btn" onclick="startScanner()">📷 เริ่มต้นสแกนข้อมูล</button>
-            </div>
 
-            <!-- หน้าต่างสตรีมภาพกล้อง -->
+
             <div class="scanner-wrapper">
                 <div id="reader"></div>
                 <div class="scan-overlay" id="overlay">
@@ -377,28 +43,24 @@
                     </div>
                 </div>
             </div>
-
-            <!-- ส่วนแสดงสถานะการอ่านรอบปัจจุบัน -->
-            <div class="result-container">
-                <div class="result-row">
-                    <div class="result-title">ข้อมูลดิบทั้งหมด (Raw Data):</div>
-                    <div class="result-value text-full" id="result-all">กำลังรอเปิดกล้องเพื่อสแกน...</div>
-                </div>
-                <div class="result-row"
-                    style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; margin-top: 0.75rem;">
-                    <div class="result-title">รหัสที่คัดกรอง (Extracted ID):</div>
-                    <div class="result-value text-extracted" id="result-split">-</div>
-                </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" id="start-btn" onclick="startScanner()">📷 เริ่มต้นสแกนข้อมูล</button>
             </div>
 
-            <!-- ส่วนของประวัติและการดาวน์โหลด / เคลียร์ค่า -->
+            <div class="result-container">
+                <div class="result-row">
+                    <div class="result-title">ข้อมูลครุภัณฑ์ :</div>
+                    <div class="result-value text-full" id="result-all">กำลังรอการสแกน...</div>
+                </div>
+
+            </div>
+
             <div class="history-container">
                 <div class="history-header">
-                    <span>📋 ประวัติการทำงาน</span>
-                    <div style="display: flex; gap: 6px;">
-                        <!-- 🗑️ ปุ่มล้างประวัติ (Clear) และ 📥 ดาวน์โหลด (Download) -->
-                        <button class="btn-clear" onclick="clearHistory()">🗑️ ล้างประวัติ</button>
-                        <button class="btn btn-download" onclick="downloadHistory()">📥 ดาวน์โหลด</button>
+                    <span>📋 รายการครุภัณฑ์ : </span>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-clear" onclick="clearHistory()">🗑️ ล้างรายการ</button>
+                        <button class="btn btn-download" onclick="downloadHistory()">📥 Download</button>
                     </div>
                 </div>
                 <div class="history-table-wrapper">
@@ -411,7 +73,6 @@
         </div>
     </div>
 
-    <!-- เรียกใช้งาน JavaScript ภายนอก -->
     <script src="script.js"></script>
 </body>
 
