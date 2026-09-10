@@ -157,7 +157,7 @@ function onScanSuccess(decodedText, decodedResult) {
     } else {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความที่ได้สั้นเกินไป (สั้นกว่า 22 ตัวอักษร)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร)</span>`;
         setTimeout(() => {
             isProcessing = false;
         }, 1500);
@@ -169,15 +169,33 @@ function onScanSuccess(decodedText, decodedResult) {
     }, 2500);
 }
 
+// 🎥 เริ่มสแกนกล้อง (อัปเกรดความเร็ว)
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
 
     Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length) {
             html5QrCode = new Html5Qrcode("reader");
+
+            // การตั้งค่าความเร็ว (Performance Settings)
+            const config = {
+                fps: 30, // ⚡ อัปเกรดจาก 10-15 เป็น 30 เฟรมต่อวินาที เพื่อให้อ่านภาพได้ถี่ขึ้น
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+                disableFlip: false // ยอมให้แสกนภาพกลับด้านได้ (เผื่อกรณีมุมกล้องกลับด้าน)
+            };
+
+            // ลองเปิดกล้องหลังก่อน
             html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 15, qrbox: { width: 250, height: 250 } },
+                {
+                    facingMode: "environment", // บังคับกล้องหลัง
+                    // แนะนำความละเอียดที่เหมาะสม (ไม่ละเอียดเกินไปจนช้า ไม่เบลอเกินไปจนอ่านไม่ออก)
+                    videoConstraints: {
+                        width: { ideal: 1280 }, // ความละเอียด HD 720p ก็เพียงพอ
+                        height: { ideal: 720 }
+                    }
+                },
+                config,
                 onScanSuccess
             ).then(() => {
                 document.getElementById('overlay').style.display = 'flex';
@@ -187,7 +205,7 @@ function startScanner() {
 
                 html5QrCode.start(
                     devices[0].id,
-                    { fps: 15, qrbox: { width: 250, height: 250 } },
+                    config,
                     onScanSuccess
                 ).then(() => {
                     document.getElementById('overlay').style.display = 'flex';
@@ -204,12 +222,13 @@ function startScanner() {
         }
     }).catch(err => {
         document.getElementById('start-btn').style.display = 'inline-block';
-        alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง (กรุณากด Allow หรือตรวจสอบ HTTPS)\nรายละเอียด: " + err);
+        alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง\nรายละเอียด: " + err);
     });
 }
 
+
 function clearHistory() {
-    const confirmClear = confirm("คุณต้องการลบรายการครุภัณฑ์ที่สแกนได้ทั้งหมดใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
+    const confirmClear = confirm("คุณต้องการล้างรายการครุภัณฑ์ที่สแกนได้ทั้งหมดใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
 
     if (confirmClear) {
         scanHistoryList = [];
@@ -221,7 +240,7 @@ function clearHistory() {
 
         playBeepSound('warning');
 
-        console.log("ล้างรายการครุภัณฑ์ทั้งหมดเรียบร้อยแล้ว");
+        console.log("ล้างรายการสแกนทั้งหมดเรียบร้อยแล้ว");
     }
 }
 
