@@ -1,4 +1,4 @@
-// script.js (ฉบับแก้ไขปัญหาหยุดสแกนเมื่อเจอค่าซ้ำและค่าผิดเงื่อนไข)
+// script.js (ฉบับแก้ไขตรรกะระงับการล็อกกล้องเมื่อตรวจเจอความผิดพลาด)
 
 let html5QrCode;
 let isProcessing = false;
@@ -116,8 +116,10 @@ function onScanSuccess(decodedText, decodedResult) {
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
 
-        // 🔄 ปลดล็อกกล้องและเริ่มสแกนต่อทันที
-        resumeScanning(1500);
+        // 🔄 ปลดล็อกกล้องทันทีเพื่อให้สแกนต่อได้โดยไม่ค้าง
+        setTimeout(() => {
+            isProcessing = false;
+        }, 1500);
         return;
     }
 
@@ -135,8 +137,10 @@ function onScanSuccess(decodedText, decodedResult) {
             document.getElementById('result-all').innerText = cleanedText;
             splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อมูลไม่ตรงมาตรฐาน (${digitCount} Digits / ต้องการ 22)</span>`;
 
-            // 🔄 ข้อมูลไม่ได้ขนาด ปลดล็อกกล้องและเริ่มสแกนต่อ
-            resumeScanning(1500);
+            // 🔄 ข้อมูลไม่ได้ขนาด ปลดล็อกกล้องเพื่อให้ทำงานสแกนต่อได้
+            setTimeout(() => {
+                isProcessing = false;
+            }, 1500);
             return;
         }
 
@@ -150,7 +154,10 @@ function onScanSuccess(decodedText, decodedResult) {
             splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
 
             // 🔄 ตรวจพบรหัสซ้ำ ปลดล็อกกล้องให้ทำงานต่ออัตโนมัติภายใน 1.5 วินาที
-            resumeScanning(1500);
+            setTimeout(() => {
+                isProcessing = false;
+                console.log("ล้างสถานะล็อกหลังเจอค่าซ้ำเรียบร้อย...");
+            }, 1500);
             return;
         }
 
@@ -172,30 +179,17 @@ function onScanSuccess(decodedText, decodedResult) {
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร)</span>`;
 
-        // 🔄 ปลดล็อกกล้องและเริ่มสแกนต่อ
-        resumeScanning(1500);
+        // 🔄 ปลดล็อกกล้องเมื่อต้นฉบับสั้นเกินไป
+        setTimeout(() => {
+            isProcessing = false;
+        }, 1500);
         return;
     }
 
-    // กรณีสแกนค่าใหม่ผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที เพื่อไม่ให้จับภาพแผ่นเดิมทันที
-    resumeScanning(2500);
-}
-
-// 🔄 ฟังก์ชันช่วยตื่นตัวกล้องและปลดล็อกระบบ (ลบล้างอาการค้าง)
-function resumeScanning(delayTime) {
+    // กรณีสแกนค่าปกติผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที
     setTimeout(() => {
         isProcessing = false;
-
-        // 🚨 สั่งให้ html5QrCode ทำการสแกนจับเฟรมวิดีโอต่อโดยตรง (Resume scanning)
-        if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
-            try {
-                html5QrCode.resume();
-                console.log("สตรีมกล้องกลับมาพร้อมทำงานต่อแล้ว...");
-            } catch (err) {
-                console.error("Resume failed: ", err);
-            }
-        }
-    }, delayTime);
+    }, 2500);
 }
 
 // 🎥 เริ่มสแกนกล้อง
