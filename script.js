@@ -1,4 +1,4 @@
-// script.js (ฉบับสมบูรณ์ แก้ไขอาการค้างเมื่อสแกนเจอค่าซ้ำ)
+// script.js
 
 let html5QrCode;
 let isProcessing = false;
@@ -101,46 +101,22 @@ function downloadHistory() {
     URL.revokeObjectURL(url);
 }
 
-// 🚨 จัดการหน้าต่างป๊อปอัป (Popup Modal Logic)
-function showDuplicateModal(text) {
-    const modal = document.getElementById('duplicate-modal');
-    const messageEl = document.getElementById('modal-dup-message');
-
-    // ตั้งข้อความระบุรหัสตัวที่ซ้ำ
-    messageEl.innerHTML = `รหัสที่ดึงได้ <strong style="color:#ef4444; font-family: monospace;">"${text}"</strong> มีบันทึกในระบบประวัติเรียบร้อยแล้ว`;
-
-    // เปิดแสดงป๊อปอัป
-    modal.classList.add('active');
-}
-
-// 🔓 ปลดล็อกระบบสแกนเมื่อผู้ใช้กดปิดหน้าต่างแจ้งเตือน
-function closeDuplicateModal() {
-    const modal = document.getElementById('duplicate-modal');
-    modal.classList.remove('active');
-
-    // หน่วงเวลาสั้นๆ (0.5 วินาที) หลังป๊อปอัปหายไป เพื่อความพร้อมในการสแกนรหัสอื่นต่อ
-    setTimeout(() => {
-        isProcessing = false;
-        console.log("ระบบพร้อมสแกนต่อแล้ว...");
-    }, 500);
-}
-
 // 🎯 ฟังก์ชันสแกนสำเร็จ
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
-    isProcessing = true; // ล็อกการทำงานทันที
+    isProcessing = true; // ล็อกระบบสแกนชั่วคราวเพื่อประมวลผลข้อมูล
 
     // 1. ตัดช่องว่างหัวท้ายที่อาจติดมาในรหัส QR
     const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
 
-    // 🛡️ ป้องกันค่าว่างดิบ
+    // 🛡️ ตรวจเช็คค่าว่าง
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
 
-        // ปลดล็อกระบบอย่างรวดเร็วเพื่อสแกนใบอื่น
+        // ปลดล็อกระบบเร็ว (1.5 วินาที)
         setTimeout(() => {
             isProcessing = false;
         }, 1500);
@@ -151,7 +127,7 @@ function onScanSuccess(decodedText, decodedResult) {
     const endIndex = 30;
     let extractedText = "";
 
-    // 2. ตรวจสอบเงื่อนไขความยาว 22 Digits
+    // 2. ตรวจสอบเงื่อนไขความยาว 22 Digits (ดึงตำแหน่ง 9 ถึง 30 ต้นฉบับต้องมีอย่างน้อย 30 ตัวอักษร)
     if (cleanedText.length >= endIndex) {
         extractedText = cleanedText.substring(startIndex, endIndex).trim();
         const digitCount = extractedText.length;
@@ -161,7 +137,7 @@ function onScanSuccess(decodedText, decodedResult) {
             document.getElementById('result-all').innerText = cleanedText;
             splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อมูลไม่ตรงมาตรฐาน (${digitCount} Digits / ต้องการ 22)</span>`;
 
-            // ไม่ตรงมาตรฐาน ปลดล็อกเร็ว (1.5 วินาที) เพื่อสแกนใบใหม่
+            // ข้อมูลไม่ได้ขนาด ปลดล็อกระบบภายใน 1.5 วินาที
             setTimeout(() => {
                 isProcessing = false;
             }, 1500);
@@ -172,20 +148,22 @@ function onScanSuccess(decodedText, decodedResult) {
         const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
 
         if (isDuplicate) {
-            playBeepSound('warning'); // แจ้งเสียงเตือนซ้ำ
+            playBeepSound('warning'); // แจ้งเสียงเตือนซ้ำ (เสียงบี๊บต่ำ)
 
             document.getElementById('result-all').innerText = cleanedText;
             splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
 
-            // 🚨 เรียกแสดงผลลัพธ์ผ่าน Popup หน้าจอ เพื่อหยุดระบบ
-            showDuplicateModal(extractedText);
-
-            // ⛔ ยุติการทำงานและไม่ยอมรันตัวสแกนต่อจนกว่าผู้ใช้จะกดปุ่ม "ตกลง" เพื่อเคลียร์สถานะในฟังก์ชัน closeDuplicateModal()
+            // 🔓 [จุดแก้ไขหลัก] ไม่ค้างระบบ! เมื่อตรวจพบข้อมูลซ้ำ จะแช่ข้อความแจ้งเตือนสีแดงไว้ 1.5 วินาที 
+            // แล้วทำการปลดล็อก (isProcessing = false) เพื่อให้สแกนแผ่นถัดไปได้อย่างอิสระโดยไม่ต้องคลิกปุ่มใดๆ
+            setTimeout(() => {
+                isProcessing = false;
+                console.log("ล้างสถานะล็อกพร้อมสแกนแผ่นถัดไปแล้ว");
+            }, 1500);
             return;
         }
 
         // ✅ ผ่านเกณฑ์ความถูกต้องทั้งหมด (ไม่ว่าง, ไม่ซ้ำ, และมี 22 Digits พอดี)
-        playBeepSound('success');
+        playBeepSound('success'); // แจ้งเตือนสแกนสำเร็จด้วยเสียงติ๊ดแหลมสูง
 
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
@@ -202,14 +180,13 @@ function onScanSuccess(decodedText, decodedResult) {
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร)</span>`;
 
-        // ปลดล็อกระบบอย่างรวดเร็ว
         setTimeout(() => {
             isProcessing = false;
         }, 1500);
         return;
     }
 
-    // กรณีสแกนค่าปกติผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที
+    // กรณีสแกนค่าใหม่ผ่านสำเร็จ หน่วงเวลาสแกน 2.5 วินาที เพื่อให้มีเวลาสลับแผ่น QR Code
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
@@ -223,7 +200,7 @@ function startScanner() {
         if (devices && devices.length) {
             html5QrCode = new Html5Qrcode("reader");
 
-            // ลองเปิดกล้องหลังก่อน
+            // ลองเปิดกล้องหลังก่อน (Facing Environment)
             html5QrCode.start(
                 { facingMode: "environment" },
                 { fps: 15, qrbox: { width: 250, height: 250 } },
@@ -232,7 +209,7 @@ function startScanner() {
                 document.getElementById('overlay').style.display = 'flex';
                 updateHistoryUI();
             }).catch(err => {
-                // คอมคอมพิวเตอร์ทั่วไปสลับไปกล้องหน้า
+                // หากไม่มีกล้องหลัง (เช่น ใช้คอมพิวเตอร์ทั่วไป) ให้สลับไปใช้กล้องตัวแรก
                 console.warn("ไม่พบกล้องหลัง กำลังใช้งานกล้องตัวแรกสุด...", err);
 
                 html5QrCode.start(
