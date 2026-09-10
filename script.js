@@ -110,60 +110,91 @@ function downloadHistory() {
 }
 
 // 🎯 ฟังก์ชันสแกนสำเร็จ
+// script.js (เฉพาะส่วนฟังก์ชัน onScanSuccess ที่อัปเกรดระบบตรวจสอบ 22 Digits)
+
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
-    isProcessing = true;
+    isProcessing = true; // ล็อกระบบเพื่อรอการหน่วงเวลา
 
-    const startIndex = 8; // ข้อความตัวอักษรตำแหน่งที่ 9 (ดัชนี 8)
-    const endIndex = 30;
-    let extractedText = "";
-
+    // 1. ตัดช่องว่างหัวท้ายที่อาจติดมาในรหัส QR
+    const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
 
-    if (decodedText.length >= startIndex) {
-        extractedText = decodedText.substring(startIndex, endIndex);
+    // 🛡️ ป้องกันค่าว่างดิบ
+    if (cleanedText === "") {
+        playBeepSound('warning');
+        document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
+        setTimeout(() => { isProcessing = false; }, 1500);
+        return;
+    }
 
-        // 🔍 ค้นหาค่าซ้ำภายในอาร์เรย์ (แมพหาเฉพาะฟิลด์ .text)
+    const startIndex = 8; // ดัชนีตัวอักษรตัวที่ 9 ในระบบคอมพิวเตอร์
+    const endIndex = 30;  // สิ้นสุดที่ดัชนีตัวที่ 30
+    let extractedText = "";
+
+    // ตรวจสอบว่าความยาวของข้อความต้นฉบับเพียงพอที่จะตัดไปถึงดัชนีที่ 30 หรือไม่ (ความยาวขั้นต่ำต้องมี 30 ตัวอักษร)
+    if (cleanedText.length >= endIndex) {
+        // ทำการตัดดึงข้อมูลเฉพาะตำแหน่งที่ 9 ถึง 30
+        extractedText = cleanedText.substring(startIndex, endIndex).trim();
+
+        // 🛡️ [จุดสำคัญ] ตรวจสอบว่าข้อมูลที่ตัดมาได้นั้นมีจำนวน 22 ตัวอักษร (22 Digits) พอดีหรือไม่
+        const digitCount = extractedText.length;
+
+        if (digitCount !== 22) {
+            playBeepSound('warning'); // แจ้งเตือนด้วยเสียงทุ้มต่ำ
+            document.getElementById('result-all').innerText = cleanedText;
+
+            // แสดงแจ้งเตือนสีแดงแจ้งให้ผู้ใช้ทราบว่าจำนวน Digit ไม่ถูกต้อง
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อมูลไม่ตรงมาตรฐาน (${digitCount} Digits / ต้องการ 22)</span>`;
+
+            // ปลดล็อกระบบสแกนใน 2 วินาที เพื่อให้ลองสแกน QR Code แผ่นใหม่
+            setTimeout(() => {
+                isProcessing = false;
+            }, 2000);
+            return; // ⛔ คัดออกทันที ไม่ให้ไปถึงขั้นตอนตรวจซ้ำและบันทึกประวัติ
+        }
+
+        // 🔍 ตรวจสอบหาความซ้ำซ้อนในประวัติสแกน
         const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
 
         if (isDuplicate) {
-            playBeepSound('warning'); // แจ้งเตือนเสียงทุ้มต่ำ
+            playBeepSound('warning'); // แจ้งเสียงเตือนซ้ำ
+            document.getElementById('result-all').innerText = cleanedText;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
 
-            document.getElementById('result-all').innerText = decodedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ข้อความนี้สแกนไปแล้ว: ${extractedText}</span>`;
-
-            setTimeout(() => {
-                isProcessing = false;
-            }, 1000);
-
+            // เรียกแสดงผลลัพธ์ผ่าน Popup หน้าจอ เพื่อให้ยืนยันตัวตน
+            showDuplicateModal(extractedText);
             return;
         }
 
-        // ✅ ผ่านเกณฑ์ความซ้ำซ้อน (รหัสใหม่)
-        playBeepSound('success'); // แจ้งเตือนติ๊ดผ่านสำเร็จ
+        // ✅ ผ่านเกณฑ์ความถูกต้องทั้งหมด (ไม่ว่าง, ไม่ซ้ำ, และมี 22 Digits พอดี)
+        playBeepSound('success');
 
-        document.getElementById('result-all').innerText = decodedText;
+        document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
 
-        // เก็บทั้ง "ข้อความที่ตัดแล้ว" และ "เวลาปัจจุบันที่สแกนเสร็จ"
+        // บันทึกรายการใหม่ลงประวัติ
         scanHistoryList.push({
             text: extractedText,
             time: getCurrentTimeFormatted()
         });
 
-        updateHistoryUI(); // วาดตารางใหม่
+        updateHistoryUI(); // วาดตารางแสดงผลใหม่
 
     } else {
+        // กรณีความยาวรหัสต้นฉบับไม่เพียงพอที่จะทำการตัดข้อความตำแหน่ง 9-30 (สั้นกว่า 30 ตัวอักษร)
         playBeepSound('warning');
-        document.getElementById('result-all').innerText = decodedText;
-        splitElement.innerText = "❌ ข้อความสั้นเกินไป (ไม่ถึง 9 ตัวอักษร)";
+        document.getElementById('result-all').innerText = cleanedText;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร จึงไม่สามารถตัดหาข้อมูล 22 Digits ได้)</span>`;
     }
 
-    // พักวงจรสแกน 2.5 วินาทีเพื่อเปิดโอกาสให้เลื่อนแผ่นรหัสใหม่เข้ามา
+    // หน่วงเวลาสแกนปกติ 2.5 วินาที
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
 }
+
 
 function startScanner() {
     html5QrCode = new Html5Qrcode("reader");
