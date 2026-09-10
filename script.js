@@ -1,9 +1,7 @@
-// script.js
+// script.js (ฉบับสมบูรณ์ แก้ไขอาการค้างเมื่อสแกนเจอค่าซ้ำ)
 
 let html5QrCode;
 let isProcessing = false;
-
-// เปลี่ยนโครงสร้างตัวแปรเพื่อเก็บวัตถุประวัติ { text: 'ข้อมูล', time: 'เวลา' }
 let scanHistoryList = [];
 
 // 🔊 ฟังก์ชันสร้างเสียงแจ้งเตือน (Beep) แบบปรับแต่งโทนได้
@@ -34,7 +32,7 @@ function playBeepSound(type = 'success') {
     }
 }
 
-// ⏳ ดึงเวลาปัจจุบันของผู้ใช้ในฟอร์แมต HH:MM:SS น.
+// ⏳ ดึงเวลาปัจจุบันในฟอร์แมต HH:MM:SS น.
 function getCurrentTimeFormatted() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -43,35 +41,30 @@ function getCurrentTimeFormatted() {
     return `${hours}:${minutes}:${seconds} น.`;
 }
 
-// 🔄 อัปเดตและแสดงตารางรายการประวัติ (Table Row Builder)
+// 🔄 อัปเดตตารางรายการประวัติ
 function updateHistoryUI() {
     const tbody = document.getElementById('history-tbody');
-    tbody.innerHTML = ''; // ล้างตารางเดิมเพื่อแสดงตารางอัปเดตใหม่
+    tbody.innerHTML = '';
 
-    // ตรวจสอบว่ามีรายการในประวัติหรือไม่ หากไม่มีให้ใส่แถวว่าง
     if (scanHistoryList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ยังไม่มีประวัติการสแกนเข้าสู่ระบบ</td></tr>`;
         return;
     }
 
-    // วาดแถวตารางย้อนกลับ (รายการสแกนล่าสุดจะเด้งไปแสดงอยู่ข้างบนสุดเพื่อให้อ่านง่าย)
-    // หากต้องการให้ของใหม่อยู่ล่างสุด ให้เปลี่ยนเป็นลูปแบบปกติได้ครับ
+    // วาดจากล่าสุดขึ้นข้างบน เพื่อความสะดวกในการตรวจทาน
     for (let i = scanHistoryList.length - 1; i >= 0; i--) {
         const item = scanHistoryList[i];
 
         const row = document.createElement('tr');
 
-        // 1. คอลัมน์ ลำดับรายการ
         const cellIndex = document.createElement('td');
         cellIndex.className = 'col-index';
         cellIndex.innerText = i + 1;
 
-        // 2. คอลัมน์ ข้อความที่ตัดได้
         const cellData = document.createElement('td');
         cellData.className = 'col-data';
         cellData.innerText = item.text;
 
-        // 3. คอลัมน์ เวลาสแกน
         const cellTime = document.createElement('td');
         cellTime.className = 'col-time';
         cellTime.innerText = item.time;
@@ -84,14 +77,13 @@ function updateHistoryUI() {
     }
 }
 
-// 📥 ดาวน์โหลดประวัติทั้งหมดเป็นไฟล์ข้อความ (.txt)
+// 📥 ดาวน์โหลดประวัติเป็น .txt
 function downloadHistory() {
     if (scanHistoryList.length === 0) {
         alert("ยังไม่มีข้อมูลประวัติการสแกนให้ดาวน์โหลดครับ");
         return;
     }
 
-    // รวมข้อมูลเฉพาะส่วน 'รหัสข้อความที่ตัดแล้ว' คั่นด้วยการขึ้นบรรทัดใหม่
     const textContent = scanHistoryList.map(item => item.text).join('\n');
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -109,12 +101,34 @@ function downloadHistory() {
     URL.revokeObjectURL(url);
 }
 
-// 🎯 ฟังก์ชันสแกนสำเร็จ
-// script.js (เฉพาะส่วนฟังก์ชัน onScanSuccess ที่อัปเกรดระบบตรวจสอบ 22 Digits)
+// 🚨 จัดการหน้าต่างป๊อปอัป (Popup Modal Logic)
+function showDuplicateModal(text) {
+    const modal = document.getElementById('duplicate-modal');
+    const messageEl = document.getElementById('modal-dup-message');
 
+    // ตั้งข้อความระบุรหัสตัวที่ซ้ำ
+    messageEl.innerHTML = `รหัสที่ดึงได้ <strong style="color:#ef4444; font-family: monospace;">"${text}"</strong> มีบันทึกในระบบประวัติเรียบร้อยแล้ว`;
+
+    // เปิดแสดงป๊อปอัป
+    modal.classList.add('active');
+}
+
+// 🔓 ปลดล็อกระบบสแกนเมื่อผู้ใช้กดปิดหน้าต่างแจ้งเตือน
+function closeDuplicateModal() {
+    const modal = document.getElementById('duplicate-modal');
+    modal.classList.remove('active');
+
+    // หน่วงเวลาสั้นๆ (0.5 วินาที) หลังป๊อปอัปหายไป เพื่อความพร้อมในการสแกนรหัสอื่นต่อ
+    setTimeout(() => {
+        isProcessing = false;
+        console.log("ระบบพร้อมสแกนต่อแล้ว...");
+    }, 500);
+}
+
+// 🎯 ฟังก์ชันสแกนสำเร็จ
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
-    isProcessing = true; // ล็อกระบบเพื่อรอการหน่วงเวลา
+    isProcessing = true; // ล็อกการทำงานทันที
 
     // 1. ตัดช่องว่างหัวท้ายที่อาจติดมาในรหัส QR
     const cleanedText = decodedText ? decodedText.trim() : "";
@@ -125,46 +139,48 @@ function onScanSuccess(decodedText, decodedResult) {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
-        setTimeout(() => { isProcessing = false; }, 1500);
+
+        // ปลดล็อกระบบอย่างรวดเร็วเพื่อสแกนใบอื่น
+        setTimeout(() => {
+            isProcessing = false;
+        }, 1500);
         return;
     }
 
-    const startIndex = 8; // ดัชนีตัวอักษรตัวที่ 9 ในระบบคอมพิวเตอร์
-    const endIndex = 30;  // สิ้นสุดที่ดัชนีตัวที่ 30
+    const startIndex = 8;
+    const endIndex = 30;
     let extractedText = "";
 
-    // ตรวจสอบว่าความยาวของข้อความต้นฉบับเพียงพอที่จะตัดไปถึงดัชนีที่ 30 หรือไม่ (ความยาวขั้นต่ำต้องมี 30 ตัวอักษร)
+    // 2. ตรวจสอบเงื่อนไขความยาว 22 Digits
     if (cleanedText.length >= endIndex) {
-        // ทำการตัดดึงข้อมูลเฉพาะตำแหน่งที่ 9 ถึง 30
         extractedText = cleanedText.substring(startIndex, endIndex).trim();
-
-        // 🛡️ [จุดสำคัญ] ตรวจสอบว่าข้อมูลที่ตัดมาได้นั้นมีจำนวน 22 ตัวอักษร (22 Digits) พอดีหรือไม่
         const digitCount = extractedText.length;
 
         if (digitCount !== 22) {
-            playBeepSound('warning'); // แจ้งเตือนด้วยเสียงทุ้มต่ำ
+            playBeepSound('warning');
             document.getElementById('result-all').innerText = cleanedText;
-
-            // แสดงแจ้งเตือนสีแดงแจ้งให้ผู้ใช้ทราบว่าจำนวน Digit ไม่ถูกต้อง
             splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อมูลไม่ตรงมาตรฐาน (${digitCount} Digits / ต้องการ 22)</span>`;
 
-            // ปลดล็อกระบบสแกนใน 2 วินาที เพื่อให้ลองสแกน QR Code แผ่นใหม่
+            // ไม่ตรงมาตรฐาน ปลดล็อกเร็ว (1.5 วินาที) เพื่อสแกนใบใหม่
             setTimeout(() => {
                 isProcessing = false;
-            }, 2000);
-            return; // ⛔ คัดออกทันที ไม่ให้ไปถึงขั้นตอนตรวจซ้ำและบันทึกประวัติ
+            }, 1500);
+            return;
         }
 
-        // 🔍 ตรวจสอบหาความซ้ำซ้อนในประวัติสแกน
+        // 🔍 ตรวจสอบความซ้ำในประวัติ
         const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
 
         if (isDuplicate) {
             playBeepSound('warning'); // แจ้งเสียงเตือนซ้ำ
+
             document.getElementById('result-all').innerText = cleanedText;
             splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
 
-            // เรียกแสดงผลลัพธ์ผ่าน Popup หน้าจอ เพื่อให้ยืนยันตัวตน
+            // 🚨 เรียกแสดงผลลัพธ์ผ่าน Popup หน้าจอ เพื่อหยุดระบบ
             showDuplicateModal(extractedText);
+
+            // ⛔ ยุติการทำงานและไม่ยอมรันตัวสแกนต่อจนกว่าผู้ใช้จะกดปุ่ม "ตกลง" เพื่อเคลียร์สถานะในฟังก์ชัน closeDuplicateModal()
             return;
         }
 
@@ -174,41 +190,70 @@ function onScanSuccess(decodedText, decodedResult) {
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
 
-        // บันทึกรายการใหม่ลงประวัติ
         scanHistoryList.push({
             text: extractedText,
             time: getCurrentTimeFormatted()
         });
 
-        updateHistoryUI(); // วาดตารางแสดงผลใหม่
+        updateHistoryUI();
 
     } else {
-        // กรณีความยาวรหัสต้นฉบับไม่เพียงพอที่จะทำการตัดข้อความตำแหน่ง 9-30 (สั้นกว่า 30 ตัวอักษร)
         playBeepSound('warning');
         document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร จึงไม่สามารถตัดหาข้อมูล 22 Digits ได้)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร)</span>`;
+
+        // ปลดล็อกระบบอย่างรวดเร็ว
+        setTimeout(() => {
+            isProcessing = false;
+        }, 1500);
+        return;
     }
 
-    // หน่วงเวลาสแกนปกติ 2.5 วินาที
+    // กรณีสแกนค่าปกติผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
 }
 
-
+// 🎥 เริ่มสแกนกล้อง
 function startScanner() {
-    html5QrCode = new Html5Qrcode("reader");
     document.getElementById('start-btn').style.display = 'none';
 
-    html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        onScanSuccess
-    ).then(() => {
-        document.getElementById('overlay').style.display = 'flex';
-        updateHistoryUI(); // วาดตารางว่างเปล่าเริ่มต้นเมื่อกล้องเปิดทำงานสำเร็จ
+    Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+            html5QrCode = new Html5Qrcode("reader");
+
+            // ลองเปิดกล้องหลังก่อน
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 15, qrbox: { width: 250, height: 250 } },
+                onScanSuccess
+            ).then(() => {
+                document.getElementById('overlay').style.display = 'flex';
+                updateHistoryUI();
+            }).catch(err => {
+                // คอมคอมพิวเตอร์ทั่วไปสลับไปกล้องหน้า
+                console.warn("ไม่พบกล้องหลัง กำลังใช้งานกล้องตัวแรกสุด...", err);
+
+                html5QrCode.start(
+                    devices[0].id,
+                    { fps: 15, qrbox: { width: 250, height: 250 } },
+                    onScanSuccess
+                ).then(() => {
+                    document.getElementById('overlay').style.display = 'flex';
+                    updateHistoryUI();
+                }).catch(fallbackErr => {
+                    document.getElementById('start-btn').style.display = 'inline-block';
+                    alert("❌ ไม่สามารถเปิดกล้องได้: " + fallbackErr);
+                });
+            });
+
+        } else {
+            document.getElementById('start-btn').style.display = 'inline-block';
+            alert("❌ ไม่พบอุปกรณ์กล้องบนเครื่องนี้");
+        }
     }).catch(err => {
         document.getElementById('start-btn').style.display = 'inline-block';
-        alert("❌ เปิดกล้องไม่สำเร็จ: " + err);
+        alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง (กรุณากด Allow หรือตรวจสอบ HTTPS)\nรายละเอียด: " + err);
     });
 }
