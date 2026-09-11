@@ -47,7 +47,7 @@ function updateHistoryUI() {
     tbody.innerHTML = '';
 
     if (scanHistoryList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ไม่มีข้อมูล</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ยังไม่มีประวัติการสแกนเข้าสู่ระบบ</td></tr>`;
         return;
     }
 
@@ -80,7 +80,7 @@ function updateHistoryUI() {
 // 📥 ดาวน์โหลดประวัติเป็น .txt
 function downloadHistory() {
     if (scanHistoryList.length === 0) {
-        alert("ไม่มีข้อมูล");
+        alert("ยังไม่มีข้อมูลประวัติการสแกนให้ดาวน์โหลดครับ");
         return;
     }
 
@@ -114,7 +114,7 @@ function onScanSuccess(decodedText, decodedResult) {
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง </span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
 
         // 🔄 ปลดล็อกกล้องทันทีเพื่อให้สแกนต่อได้โดยไม่ค้าง
         setTimeout(() => {
@@ -192,7 +192,7 @@ function onScanSuccess(decodedText, decodedResult) {
     }, 2500);
 }
 
-// 🎥 เริ่มสแกนกล้อง // 🎥 เริ่มสแกนกล้อง (อัปเกรดความเร็ว)
+// 🎥 เริ่มสแกนกล้อง
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
 
@@ -200,25 +200,10 @@ function startScanner() {
         if (devices && devices.length) {
             html5QrCode = new Html5Qrcode("reader");
 
-            // การตั้งค่าความเร็ว (Performance Settings)
-            const config = {
-                fps: 30, // ⚡ อัปเกรดจาก 10-15 เป็น 30 เฟรมต่อวินาที เพื่อให้อ่านภาพได้ถี่ขึ้น
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-                disableFlip: false // ยอมให้แสกนภาพกลับด้านได้ (เผื่อกรณีมุมกล้องกลับด้าน)
-            };
-
             // ลองเปิดกล้องหลังก่อน
             html5QrCode.start(
-                {
-                    facingMode: "environment", // บังคับกล้องหลัง
-                    // แนะนำความละเอียดที่เหมาะสม (ไม่ละเอียดเกินไปจนช้า ไม่เบลอเกินไปจนอ่านไม่ออก)
-                    videoConstraints: {
-                        width: { ideal: 1280 }, // ความละเอียด HD 720p ก็เพียงพอ
-                        height: { ideal: 720 }
-                    }
-                },
-                config,
+                { facingMode: "environment" },
+                { fps: 15, qrbox: { width: 250, height: 250 } },
                 onScanSuccess
             ).then(() => {
                 document.getElementById('overlay').style.display = 'flex';
@@ -228,7 +213,7 @@ function startScanner() {
 
                 html5QrCode.start(
                     devices[0].id,
-                    config,
+                    { fps: 15, qrbox: { width: 250, height: 250 } },
                     onScanSuccess
                 ).then(() => {
                     document.getElementById('overlay').style.display = 'flex';
@@ -245,15 +230,14 @@ function startScanner() {
         }
     }).catch(err => {
         document.getElementById('start-btn').style.display = 'inline-block';
-        alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง\nรายละเอียด: " + err);
+        alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง (กรุณากด Allow หรือตรวจสอบ HTTPS)\nรายละเอียด: " + err);
     });
 }
-
 // เพิ่มฟังก์ชันนี้ลงไปในส่วนท้ายของไฟล์ script.js ของคุณ
 
 function clearHistory() {
     // 🛡️ ป้องกันการเผลอกดโดนโดยไม่ตั้งใจด้วยกล่องข้อความยืนยัน
-    const confirmClear = confirm("คุณต้องการลบรายการครุภัณฑ์ทั้งหมดใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
+    const confirmClear = confirm("คุณต้องการล้างประวัติการสแกนทั้งหมดบนหน้าจอใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
 
     if (confirmClear) {
         // 1. เคลียร์ข้อมูลใน Array ประวัติให้เป็นค่าว่าง
@@ -269,7 +253,7 @@ function clearHistory() {
         // 🔊 ส่งเสียงแจ้งเตือนสั้นๆ ยืนยันการเคลียร์สำเร็จ
         playBeepSound('warning');
 
-        console.log("ลบรายการครุภัณฑ์เรียบร้อยแล้ว");
+        console.log("ลบรายการสแกนทั้งหมดเรียบร้อยแล้ว");
     }
 }
 
