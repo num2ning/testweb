@@ -187,7 +187,7 @@ function startScanner() {
 
             html5QrCode.start(
                 { facingMode: "environment" },
-                { fps: 25, qrbox: { width: 250, height: 250 } },
+                { fps: 30, qrbox: { width: 250, height: 250 } },
                 onScanSuccess
             ).then(() => {
                 document.getElementById('overlay').style.display = 'flex';
