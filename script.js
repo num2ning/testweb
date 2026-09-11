@@ -172,26 +172,14 @@ function onScanSuccess(decodedText, decodedResult) {
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
 
-    if (html5QrCode) {
-        try { html5QrCode.clear(); } catch (e) { }
-    }
-
     Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length) {
             html5QrCode = new Html5Qrcode("reader");
 
-            const config = {
-                fps: 15,
-                qrbox: function (viewfinderWidth, viewfinderHeight) {
-                    let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-                    return { width: Math.floor(minEdgeSize * 0.7), height: Math.floor(minEdgeSize * 0.7) };
-                },
-                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-            };
-
+            // ลองเปิดกล้องหลังก่อน
             html5QrCode.start(
                 { facingMode: "environment" },
-                config,
+                { fps: 15, qrbox: { width: 250, height: 250 } },
                 onScanSuccess
             ).then(() => {
                 document.getElementById('overlay').style.display = 'flex';
@@ -201,7 +189,7 @@ function startScanner() {
 
                 html5QrCode.start(
                     devices[0].id,
-                    config,
+                    { fps: 15, qrbox: { width: 250, height: 250 } },
                     onScanSuccess
                 ).then(() => {
                     document.getElementById('overlay').style.display = 'flex';
@@ -218,7 +206,7 @@ function startScanner() {
         }
     }).catch(err => {
         document.getElementById('start-btn').style.display = 'inline-block';
-        alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง\nรายละเอียด: " + err);
+        alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง (กรุณากด Allow หรือตรวจสอบ HTTPS)\nรายละเอียด: " + err);
     });
 }
 
