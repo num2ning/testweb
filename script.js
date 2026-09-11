@@ -3,7 +3,7 @@
 let html5QrCode;
 let isProcessing = false;
 let scanHistoryList = [];
-
+/*
 function playBeepSound(type = 'success') {
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -25,6 +25,70 @@ function playBeepSound(type = 'success') {
             gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.15);
+        }
+    } catch (e) {
+        console.warn("Audio Context blocked", e);
+    }
+}
+*/
+function playBeepSound(type = 'success') {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        // ตั้งค่าระดับเสียงเริ่มต้น
+        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+
+        switch (type) {
+            case 'success':
+                // เสียงสำเร็จ: เสียงสูง, สั้น, ใส (เหมือนเดิม)
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.12);
+                break;
+
+            case 'error': // <-- แบบที่ 1: เสียง Error ที่แนะนำ
+                // เสียง Error: ใช้ Sawtooth wave ทำให้เสียงดังและหยาบขึ้น, เล่น 2 โน้ต (สูงไปต่ำ)
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime); // เพิ่มเสียงให้ดังขึ้นเล็กน้อย
+
+                // โน้ตตัวแรก (สูง)
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                // โน้ตตัวที่สอง (ต่ำ)
+                oscillator.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 0.2);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.25); // ทำให้เสียงยาวขึ้นเล็กน้อย
+                break;
+
+            case 'warning': // <-- แบบที่ 2: เสียงเตือนแบบสั้นๆ 2 ครั้ง
+                // เสียงเตือน: ใช้ Square wave เสียงกระด้าง, เล่นสั้นๆ 2 ครั้ง
+                oscillator.type = 'square';
+
+                // ครั้งที่ 1
+                oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.08);
+
+                // สร้าง Oscillator ใหม่สำหรับครั้งที่ 2
+                const oscillator2 = audioCtx.createOscillator();
+                const gainNode2 = audioCtx.createGain();
+                oscillator2.connect(gainNode2);
+                gainNode2.connect(audioCtx.destination);
+
+                oscillator2.type = 'square';
+                oscillator2.frequency.setValueAtTime(600, audioCtx.currentTime + 0.15);
+                gainNode2.gain.setValueAtTime(0.15, audioCtx.currentTime + 0.15);
+
+                oscillator2.start(audioCtx.currentTime + 0.15);
+                oscillator2.stop(audioCtx.currentTime + 0.23);
+                break;
         }
     } catch (e) {
         console.warn("Audio Context blocked", e);
@@ -109,7 +173,8 @@ function onScanSuccess(decodedText, decodedResult) {
 
 
     if (cleanedText === "") {
-        playBeepSound('warning');
+        //playBeepSound('warning');
+        playBeepSound('error');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง </span>`;
 
@@ -135,7 +200,8 @@ function onScanSuccess(decodedText, decodedResult) {
 
 
     if (digitCount !== 22) {
-        playBeepSound('warning');
+        //playBeepSound('warning');
+        playBeepSound('error');
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ที่ถูกต้อง ${cutMethodMessage} (${digitCount} Digits / 22)</span>`;
 
@@ -147,7 +213,8 @@ function onScanSuccess(decodedText, decodedResult) {
     const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
 
     if (isDuplicate) {
-        playBeepSound('warning');
+        //playBeepSound('warning');
+        playBeepSound('error');
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ครุภัณฑ์นี้อยู่ในรายการครุภัณฑ์แล้ว: ${extractedText}</span>`;
 
@@ -234,7 +301,8 @@ function clearHistory() {
         document.getElementById('result-all').innerText = "รอสแกนแผ่นใหม่...";
         document.getElementById('result-split').innerText = "-";
 
-        playBeepSound('warning');
+        //playBeepSound('warning');
+        playBeepSound('error');
 
         console.log("ลบรายการครุภัณฑ์ทั้งหมดเรียบร้อยแล้ว");
     }
