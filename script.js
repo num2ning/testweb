@@ -132,7 +132,7 @@ function onScanSuccess(decodedText, decodedResult) {
         if (digitCount !== 22) {
             playBeepSound('warning');
             document.getElementById('result-all').innerText = cleanedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อมูลไม่ตรงมาตรฐาน (${digitCount} Digits / ต้องการ 22)</span>`;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ที่ถูกต้อง (${digitCount} Digits / 22)</span>`;
 
 
             setTimeout(() => {
@@ -269,4 +269,81 @@ function clearHistory() {
         console.log("ลบรายการครุภัณฑ์เรียบร้อยแล้ว");
     }
 }
+
+// script.js (เพิ่มโค้ดตรวจเช็คสถานะกล้องอัตโนมัติเมื่อโหลดหน้าเว็บ)
+
+// 🩺 ฟังก์ชันหลักสำหรับวิเคราะห์และตรวจโรคการทำงานของกล้อง
+async function checkCameraStatus() {
+    const diagBox = document.getElementById('diagnostic-box');
+    const diagIcon = document.getElementById('diag-icon');
+    const diagMsg = document.getElementById('diag-message');
+
+    // 1. ตรวจสอบความปลอดภัย HTTPS (Secure Context)
+    if (!window.isSecureContext) {
+        diagBox.className = "diag-box diag-error";
+        diagIcon.innerText = "❌";
+        diagMsg.innerHTML = "<strong>ระบบไม่ปลอดภัย:</strong> คุณไม่ได้รันหน้าเว็บผ่าน HTTPS หรือ localhost เบราว์เซอร์จะบล็อกกล้อง 100% (กรุณาเปิดใช้ SSL/HTTPS)";
+        return;
+    }
+
+    // 2. ตรวจสอบว่าเบราว์เซอร์และเครื่องมี API กล้องหรือไม่
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        diagBox.className = "diag-box diag-error";
+        diagIcon.innerText = "❌";
+        diagMsg.innerHTML = "<strong>อุปกรณ์ไม่รองรับ:</strong> เบราว์เซอร์หรืออุปกรณ์นี้ไม่มีพอร์ตการขอเปิดใช้งานกล้อง";
+        return;
+    }
+
+    try {
+        // 3. ตรวจเช็คว่ามีอุปกรณ์กล้องอยู่บนตัวเครื่องจริงๆ ไหม
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(device => device.kind === 'videoinput');
+
+        if (cameras.length === 0) {
+            diagBox.className = "diag-box diag-error";
+            diagIcon.innerText = "🔌";
+            diagMsg.innerHTML = "<strong>ไม่พบกล้อง:</strong> ไม่พบกล้องเว็บแคมหรือตัวอุปกรณ์เลนส์บนเครื่องชิ้นนี้";
+            return;
+        }
+
+        // 4. ตรวจเช็คสถานะสิทธิ์การเข้าถึง (Camera Permissions)
+        if (navigator.permissions && navigator.permissions.query) {
+            const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+
+            if (permissionStatus.state === 'granted') {
+                diagBox.className = "diag-box diag-ready";
+                diagIcon.innerText = "✅";
+                diagMsg.innerHTML = "<strong>พร้อมใช้งาน:</strong> อุปกรณ์และสิทธิ์การเข้าถึงกล้องสมบูรณ์พร้อมเริ่มสแกน";
+            } else if (permissionStatus.state === 'prompt') {
+                diagBox.className = "diag-box diag-warn";
+                diagIcon.innerText = "🔔";
+                diagMsg.innerHTML = "<strong>รอการเปิดสิทธิ์:</strong> ระบบพร้อมใช้งานแล้ว กรุณากด <strong>'อนุญาต (Allow)'</strong> เมื่อกล้องถามหาขอสิทธิ์";
+            } else if (permissionStatus.state === 'denied') {
+                diagBox.className = "diag-box diag-error";
+                diagIcon.innerText = "🚫";
+                diagMsg.innerHTML = "<strong>กล้องโดนบล็อก:</strong> คุณเคยปฏิเสธสิทธิ์กล้องไว้ กรุณากดไอคอนแม่กุญแจข้างแถบพิมพ์ URL เพื่อปลดล็อกอนุญาต";
+            }
+
+            // ดักจับการสลับเปลี่ยนสิทธิ์ของผู้ใช้แบบเรลไทม์
+            permissionStatus.onchange = () => {
+                checkCameraStatus(); // รันตรวจเช็คใหม่เมื่อสิทธิ์เปลี่ยนแปลง
+            };
+        } else {
+            // กรณีเป็นเบราว์เซอร์เก่าบางรุ่นที่ไม่รองรับ Permissions Query API แต่มีกล้องปกติ
+            diagBox.className = "diag-box diag-ready";
+            diagIcon.innerText = "✅";
+            diagMsg.innerHTML = "<strong>พร้อมใช้งาน:</strong> ตรวจพบฮาร์ดแวร์กล้องแล้ว (กดปุ่มด้านล่างเพื่อเริ่มขอสิทธิ์สแกน)";
+        }
+
+    } catch (error) {
+        diagBox.className = "diag-box diag-error";
+        diagIcon.innerText = "❌";
+        diagMsg.innerHTML = "<strong>เกิดข้อผิดพลาดในการวิเคราะห์:</strong> " + error.message;
+        console.error("Diagnostic error: ", error);
+    }
+}
+
+// 🚀 สั่งรันวิเคราะห์สถานะกล้องทันทีที่เปิดหน้าเว็บขึ้นมา
+window.addEventListener('DOMContentLoaded', checkCameraStatus);
+
 

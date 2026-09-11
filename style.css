@@ -329,3 +329,46 @@ table.history-table tr:nth-child(even) {
 .btn-clear:hover {
     background-color: #fecaca;
 }
+
+/* style.css (นำไปวางเพิ่มในไฟล์) */
+
+.diag-box {
+    padding: 0.85rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid transparent;
+}
+
+/* ⏳ สถานะกำลังเช็ค */
+.diag-checking {
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border-color: #e5e7eb;
+}
+
+/* ✅ สถานะระบบพร้อมใช้งาน */
+.diag-ready {
+    background-color: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+
+/* ⚠️ สถานะมีข้อควรระวัง (สิทธิ์กล้อง / มีปัญหาบางส่วน) */
+.diag-warn {
+    background-color: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+
+/* ❌ สถานะใช้งานไม่ได้ (ไม่มี HTTPS / ไม่มีอุปกรณ์กล้อง) */
+.diag-error {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
