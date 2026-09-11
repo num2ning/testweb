@@ -1,7 +1,10 @@
+// script.js (ฉบับแก้ไขตรรกะระงับการล็อกกล้องเมื่อตรวจเจอความผิดพลาด)
+
 let html5QrCode;
 let isProcessing = false;
 let scanHistoryList = [];
 
+// 🔊 ฟังก์ชันสร้างเสียงแจ้งเตือน (Beep) แบบปรับแต่งโทนได้
 function playBeepSound(type = 'success') {
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -29,6 +32,7 @@ function playBeepSound(type = 'success') {
     }
 }
 
+// ⏳ ดึงเวลาปัจจุบันในฟอร์แมต HH:MM:SS น.
 function getCurrentTimeFormatted() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -37,17 +41,20 @@ function getCurrentTimeFormatted() {
     return `${hours}:${minutes}:${seconds} น.`;
 }
 
+// 🔄 อัปเดตตารางรายการประวัติ
 function updateHistoryUI() {
     const tbody = document.getElementById('history-tbody');
     tbody.innerHTML = '';
 
     if (scanHistoryList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ไม่มีข้อมูล</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ยังไม่มีประวัติการสแกนเข้าสู่ระบบ</td></tr>`;
         return;
     }
 
+    // วาดจากล่าสุดขึ้นข้างบน เพื่อความสะดวกในการตรวจทาน
     for (let i = scanHistoryList.length - 1; i >= 0; i--) {
         const item = scanHistoryList[i];
+
         const row = document.createElement('tr');
 
         const cellIndex = document.createElement('td');
@@ -70,6 +77,7 @@ function updateHistoryUI() {
     }
 }
 
+// 📥 ดาวน์โหลดประวัติเป็น .txt
 function downloadHistory() {
     if (scanHistoryList.length === 0) {
         alert("ยังไม่มีข้อมูลประวัติการสแกนให้ดาวน์โหลดครับ");
@@ -93,82 +101,98 @@ function downloadHistory() {
     URL.revokeObjectURL(url);
 }
 
+// 🎯 ฟังก์ชันสแกนสำเร็จ
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
-    isProcessing = true; // ล็อกระบบชั่วคราว ป้องกันการสแกนซ้ำซ้อนในเสี้ยววินาที
+    isProcessing = true; // ล็อกระบบสแกนชั่วคราวเพื่อประมวลผลข้อมูล
 
+    // 1. ดักสิทธิและตัดช่องว่างหัวท้ายที่อาจติดมาในรหัส QR
     const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
 
-    // 🛡️ 1. ตรวจสอบค่าว่างเปล่า
+    // 🛡️ ป้องกันค่าว่างดิบ
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
 
-        setTimeout(() => { isProcessing = false; }, 1500);
-        return;
-    }
-
-    let extractedText = "";
-    let cutMethodMessage = "";
-
-    // 🛡️ 2. ตรวจสอบเงื่อนไขความยาวและทำการตัดข้อความ
-    if (cleanedText.length < 30) {
-        // 🔹 กรณีข้อความ น้อยกว่า 30 ตัวอักษร -> ตัดตำแหน่งที่ 1 ถึง ตำแหน่งที่ 22 (ดัชนี 0 ถึง 22)
-        extractedText = cleanedText.substring(0, 22).trim();
-        cutMethodMessage = "(ตัดตำแหน่ง 1-22)";
-    } else {
-        // 🔸 กรณีข้อความ ตั้งแต่ 30 ตัวอักษรขึ้นไป -> ตัดตำแหน่งที่ 9 ถึง ตำแหน่งที่ 30 เหมือนเดิม (ดัชนี 8 ถึง 30)
-        extractedText = cleanedText.substring(8, 30).trim();
-        cutMethodMessage = "(ตัดตำแหน่ง 9-30)";
-    }
-
-    const digitCount = extractedText.length;
-
-    // 🛡️ 3. ตรวจสอบความถูกต้องของความยาวผลลัพธ์ (ต้องได้ 22 หลักเท่านั้น)
-    if (digitCount !== 22) {
-        playBeepSound('warning');
-        document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ที่ถูกต้อง ${cutMethodMessage} (${digitCount} Digits / ต้องการ 22)</span>`;
-
-        setTimeout(() => { isProcessing = false; }, 1500);
-        return;
-    }
-
-    // 🛡️ 4. ตรวจสอบหาความซ้ำซ้อนในประวัติ
-    const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
-
-    if (isDuplicate) {
-        playBeepSound('warning');
-        document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
-
-        // สลัดตัวล็อกหลังตรวจพบค่าซ้ำทันทีใน 1.5 วินาที เพื่อไม่ให้ระบบสแกนค้าง
+        // 🔄 ปลดล็อกกล้องทันทีเพื่อให้สแกนต่อได้โดยไม่ค้าง
         setTimeout(() => {
             isProcessing = false;
         }, 1500);
         return;
     }
 
-    // ✅ ผ่านทุกเงื่อนไข (สแกนเสียงบี๊บสำเร็จ เข้าระบบ)
-    playBeepSound('success');
-    document.getElementById('result-all').innerText = cleanedText;
-    splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
+    const startIndex = 8;
+    const endIndex = 30;
+    let extractedText = "";
 
-    scanHistoryList.push({
-        text: extractedText,
-        time: getCurrentTimeFormatted()
-    });
+    // 2. ตรวจสอบเงื่อนไขความยาว 22 Digits (ดึงตำแหน่ง 9 ถึง 30 ต้นฉบับต้องมีอย่างน้อย 30 ตัวอักษร)
+    if (cleanedText.length >= endIndex) {
+        extractedText = cleanedText.substring(startIndex, endIndex).trim();
+        const digitCount = extractedText.length;
 
-    updateHistoryUI();
+        if (digitCount !== 22) {
+            playBeepSound('warning');
+            document.getElementById('result-all').innerText = cleanedText;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อมูลไม่ตรงมาตรฐาน (${digitCount} Digits / ต้องการ 22)</span>`;
 
-    // พักเซนเซอร์ปกติ 2.5 วินาที ก่อนสแกนแผ่นถัดไป
+            // 🔄 ข้อมูลไม่ได้ขนาด ปลดล็อกกล้องเพื่อให้ทำงานสแกนต่อได้
+            setTimeout(() => {
+                isProcessing = false;
+            }, 1500);
+            return;
+        }
+
+        // 🔍 ตรวจสอบความซ้ำในประวัติ
+        const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
+
+        if (isDuplicate) {
+            playBeepSound('warning'); // แจ้งเสียงเตือนซ้ำ (เสียงบี๊บต่ำ)
+
+            document.getElementById('result-all').innerText = cleanedText;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
+
+            // 🔄 ตรวจพบรหัสซ้ำ ปลดล็อกกล้องให้ทำงานต่ออัตโนมัติภายใน 1.5 วินาที
+            setTimeout(() => {
+                isProcessing = false;
+                console.log("ล้างสถานะล็อกหลังเจอค่าซ้ำเรียบร้อย...");
+            }, 1500);
+            return;
+        }
+
+        // ✅ ผ่านเกณฑ์ความถูกต้องทั้งหมด (ไม่ว่าง, ไม่ซ้ำ, และมี 22 Digits พอดี)
+        playBeepSound('success'); // แจ้งเตือนสแกนสำเร็จด้วยเสียงติ๊ดแหลมสูง
+
+        document.getElementById('result-all').innerText = cleanedText;
+        splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
+
+        scanHistoryList.push({
+            text: extractedText,
+            time: getCurrentTimeFormatted()
+        });
+
+        updateHistoryUI();
+
+    } else {
+        playBeepSound('warning');
+        document.getElementById('result-all').innerText = cleanedText;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร)</span>`;
+
+        // 🔄 ปลดล็อกกล้องเมื่อต้นฉบับสั้นเกินไป
+        setTimeout(() => {
+            isProcessing = false;
+        }, 1500);
+        return;
+    }
+
+    // กรณีสแกนค่าปกติผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
 }
 
+// 🎥 เริ่มสแกนกล้อง
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
 
@@ -209,16 +233,27 @@ function startScanner() {
         alert("❌ เบราว์เซอร์ปฏิเสธสิทธิ์การเข้าถึงกล้อง (กรุณากด Allow หรือตรวจสอบ HTTPS)\nรายละเอียด: " + err);
     });
 }
+// เพิ่มฟังก์ชันนี้ลงไปในส่วนท้ายของไฟล์ script.js ของคุณ
 
 function clearHistory() {
-    const confirmClear = confirm("คุณต้องการลบรายการครุภัณฑ์ทั้งหมดใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
+    // 🛡️ ป้องกันการเผลอกดโดนโดยไม่ตั้งใจด้วยกล่องข้อความยืนยัน
+    const confirmClear = confirm("คุณต้องการล้างประวัติการสแกนทั้งหมดบนหน้าจอใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
 
     if (confirmClear) {
+        // 1. เคลียร์ข้อมูลใน Array ประวัติให้เป็นค่าว่าง
         scanHistoryList = [];
+
+        // 2. สั่งรีเฟรชหน้าจอ (UI) ตารางประวัติให้เป็นสถานะว่างเปล่า
         updateHistoryUI();
+
+        // 3. รีเซ็ตกล่องแสดงผลลัพธ์บนหน้าจอให้กลับเป็นค่าเริ่มต้น
         document.getElementById('result-all').innerText = "รอสแกนแผ่นใหม่...";
         document.getElementById('result-split').innerText = "-";
+
+        // 🔊 ส่งเสียงแจ้งเตือนสั้นๆ ยืนยันการเคลียร์สำเร็จ
         playBeepSound('warning');
-        console.log("ลบรายการครุภัณฑ์เรียบร้อยแล้ว");
+
+        console.log("ล้างประวัติการสแกนทั้งหมดเรียบร้อยแล้ว");
     }
 }
+
