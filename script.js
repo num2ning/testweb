@@ -1,4 +1,4 @@
-// script.js (ฉบับเพรียวบาง ป้องกันการโหลดแครชและค้างอย่างมีประสิทธิภาพ)
+// script.js (ฉบับเสถียรภาพสูงสุด รองรับกล้องมือถือและคอมพิวเตอร์ทุกรุ่น)
 
 let html5QrCode;
 let isProcessing = false;
@@ -32,7 +32,7 @@ function playBeepSound(type = 'success') {
     }
 }
 
-// ⏳ ดึงเวลาปัจจุบัน
+// ⏳ ดึงเวลาปัจจุบันในฟอร์แมต HH:MM:SS น.
 function getCurrentTimeFormatted() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -51,7 +51,7 @@ function updateHistoryUI() {
         return;
     }
 
-    // เรียงของใหม่ขึ้นแสดงด้านบนสุด
+    // แสดงประวัติล่าสุดไว้บนสุด
     for (let i = scanHistoryList.length - 1; i >= 0; i--) {
         const item = scanHistoryList[i];
 
@@ -113,7 +113,7 @@ function downloadHistory() {
     URL.revokeObjectURL(url);
 }
 
-// 🎯 ฟังก์ชันสแกนสำเร็จ
+// 🎯 ฟังก์ชันสแกนสำเร็จ (Success Callback)
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
     isProcessing = true; // ล็อกป้อนกันการสแกนซ้ำซ้อนชั่วคราว
@@ -121,7 +121,7 @@ function onScanSuccess(decodedText, decodedResult) {
     const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
 
-    // 🛡️ เช็คค่าว่าง
+    // ตรวจสอบค่าว่าง
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
@@ -134,7 +134,7 @@ function onScanSuccess(decodedText, decodedResult) {
     const endIndex = 30;
     let extractedText = "";
 
-    // 2. ตรวจสอบเงื่อนไขความยาว 22 หลัก
+    // ตรวจสอบเงื่อนไขความยาว 22 หลัก (ข้อมูลต้นฉบับต้องมีอย่างน้อย 30 ตัวอักษรขึ้นไป)
     if (cleanedText.length >= endIndex) {
         extractedText = cleanedText.substring(startIndex, endIndex).trim();
         const digitCount = extractedText.length;
@@ -142,12 +142,12 @@ function onScanSuccess(decodedText, decodedResult) {
         if (digitCount !== 22) {
             playBeepSound('warning');
             document.getElementById('result-all').innerText = cleanedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ รหัสสั้นหรือยาวไปได้ ${digitCount} หลัก (ต้องการ 22 หลัก)</span>`;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ รหัสตัดได้ยาว ${digitCount} หลัก (ต้องการ 22 หลัก)</span>`;
             setTimeout(() => { isProcessing = false; }, 1500);
             return;
         }
 
-        // 🔍 ตรวจเช็คข้อมูลซ้ำในประวัติ
+        // ตรวจเช็คข้อมูลซ้ำในประวัติ
         const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
 
         if (isDuplicate) {
@@ -158,7 +158,7 @@ function onScanSuccess(decodedText, decodedResult) {
             return;
         }
 
-        // ✅ สแกนสำเร็จ ครบถ้วน ไม่ซ้ำ
+        // บันทึกสำเร็จ
         playBeepSound('success');
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #1d4ed8; font-weight: 700;">${extractedText}</span>`;
@@ -177,13 +177,13 @@ function onScanSuccess(decodedText, decodedResult) {
         return;
     }
 
-    // สแกนปกติผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที
+    // กรณีสแกนผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
 }
 
-// 🎥 ฟังก์ชันเปิดกล้องเว็บแคม
+// 🎥 ฟังก์ชันเปิดกล้อง (สเปกแบบปลอดภัยสูงสุด ไร้ข้อจำกัดเชิงลึกเพื่อการป้องกันแครช)
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
     document.getElementById('result-all').innerHTML = "<span style='color:#3b82f6;'>กำลังประมวลผลกล้อง...</span>";
@@ -194,26 +194,30 @@ function startScanner() {
 
     html5QrCode = new Html5Qrcode("reader");
 
+    // ⚙️ การตั้งค่าที่คลีนที่สุด (ไม่มีการบังคับความละเอียดของพิกเซลที่อาจทำกล้องแครช)
     const config = {
         fps: 15,
-        qrbox: 240
+        qrbox: 230, // ขนาดกล่องเล็งสมดุล 230x230px
+
+        // 🎯 บังคับประมวลผลเฉพาะรูปแบบ QR_CODE เท่านั้น ปลดล็อกความเร็วสแกนติดง่าย 100%
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
     };
 
-    // เปิดกล้องหลังสไตล์มาตรฐาน (มีความเข้ากันได้สูงที่สุดกับโทรศัพท์ทุกรุ่น)
+    // เปิดใช้งานกล้องหลังในโหมด Standard
     html5QrCode.start(
-        { facingMode: "environment" },
+        { facingMode: "environment" }, // ร้องขอใช้งานกล้องหลังเป็นหลัก
         config,
         onScanSuccess
     ).then(() => {
         document.getElementById('overlay').style.display = 'flex';
-        document.getElementById('result-all').innerText = "กล้องพร้อมใช้งาน กรุณานำ QR Code มาจ่อตรงกลางกรอบ";
+        document.getElementById('result-all').innerText = "กล้องพร้อมใช้งาน กรุณานำ QR Code มาวางตรงกลางกรอบ";
         updateHistoryUI();
     }).catch(err => {
-        console.warn("ไม่สามารถรันกล้องหลังเฉพาะเจาะจงได้ ลองใช้งานโหมดกล้องเริ่มต้น...", err);
+        console.warn("ไม่สามารถเปิดกล้องหลังแบบกำหนดเองได้ กำลังใช้แผนสำรองกล้องเริ่มต้น...", err);
 
-        // แผนสำรอง: เปิดกล้องตัวแรกที่มีบนอุปกรณ์ (เช่น ใน PC หรือ Notebook)
+        // 🔄 แผนสำรอง: เปิดกล้องเว็บแคมตัวแรกสุดที่อุปกรณ์ตรวจเจอ (เช่น บน PC หรือระบบที่ระบุชื่อเลนส์ไม่ได้)
         html5QrCode.start(
-            { facingMode: "user" },
+            { facingMode: "user" }, // สลับลองเปิดกล้องหน้า/กล้องหลักทั่วไป
             config,
             onScanSuccess
         ).then(() => {
@@ -223,10 +227,10 @@ function startScanner() {
         }).catch(fallbackErr => {
             document.getElementById('start-btn').style.display = 'inline-block';
             document.getElementById('result-all').innerHTML = `<span style="color:#ef4444; font-weight:bold;">Error: ${fallbackErr}</span>`;
-            alert("❌ ไม่สามารถเปิดระบบกล้องได้: " + fallbackErr);
+            alert("❌ ไม่สามารถสตาร์ทระบบกล้องได้เนื่องจาก: " + fallbackErr);
         });
     });
 }
 
-// โหลด UI ตารางว่างเริ่มแรกเมื่อเปิดหน้าเว็บ
+// เริ่มวาดตารางประวัติเริ่มต้นเมื่อโหลดหน้าจอ
 window.addEventListener('DOMContentLoaded', updateHistoryUI);
