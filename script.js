@@ -1,16 +1,10 @@
-// --- Global Variables ---
+
 let html5QrCode;
 let isProcessing = false;
 let scanHistoryList = [];
 
 
-// --- 1. UI & Notification System (NEW) ---
-/**
- * แสดงการแจ้งเตือนแบบ Toast บนหน้าจอ
- * @param {string} message ข้อความที่จะแสดง
- * @param {string} type ประเภทการแจ้งเตือน ('success', 'error', 'info')
- * @param {number} duration ระยะเวลาที่แสดง (ms)
- */
+
 function showToast(message, type = 'info', duration = 3000) {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
@@ -41,11 +35,8 @@ function showToast(message, type = 'info', duration = 3000) {
 }
 
 
-// --- 2. Audio Feedback (UPDATED) ---
-/**
- * เล่นเสียง Beep ตามสถานะ
- * @param {string} type ประเภทเสียง ('success', 'error', 'warning')
- */
+
+
 function playBeepSound(type = 'success') {
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -84,13 +75,7 @@ function playBeepSound(type = 'success') {
 }
 
 
-// --- 3. Core Logic & Data Handling (REFACTORED) ---
 
-/**
- * (NEW) แยก Logic การตัดรหัสครุภัณฑ์ออกมา
- * @param {string} rawText ข้อความดิบที่ได้จากการสแกน
- * @returns {{extractedText: string, cutMethodMessage: string}} Object ที่มีรหัสที่ตัดแล้วและข้อความอธิบาย
- */
 function extractAssetCode(rawText) {
     const cleanedText = rawText ? rawText.trim() : "";
     let extractedText = "";
@@ -107,11 +92,7 @@ function extractAssetCode(rawText) {
 }
 
 
-/**
- * (REFACTORED) ฟังก์ชันหลักเมื่อสแกน QR Code สำเร็จ
- * @param {string} decodedText - The decoded text from the QR code.
- * @param {object} decodedResult - The detailed result object from the scanner.
- */
+
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
     isProcessing = true;
@@ -139,7 +120,7 @@ function onScanSuccess(decodedText, decodedResult) {
     if (digitCount !== 22) {
         playBeepSound('error');
         allResultElement.innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ ${cutMethodMessage} (${digitCount}/22)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ </span>`;
         handleProcessingEnd(1500);
         return;
     }
@@ -168,11 +149,6 @@ function onScanSuccess(decodedText, decodedResult) {
 }
 
 
-// --- 4. Scanner & History Management (REFACTORED) ---
-
-/**
- * (REFACTORED) เริ่มกระบวนการสแกน QR Code
- */
 function startScanner() {
     const startBtn = document.getElementById('start-btn');
     startBtn.style.display = 'none';
@@ -215,17 +191,13 @@ function startScanner() {
     });
 }
 
-/**
- * (REFACTORED) ล้างประวัติการสแกน
- */
+
 function clearHistory() {
     if (scanHistoryList.length === 0) {
         showToast("ไม่มีรายการให้ลบ", 'info');
         return;
     }
 
-    // แทนที่ confirm() ด้วย Custom Modal หรือใช้ Toast + Undo ในอนาคต
-    // แต่เพื่อความง่ายจะใช้ confirm ชั่วคราวไปก่อน
     const confirmClear = confirm("คุณต้องการลบรายการครุภัณฑ์ทั้งหมดใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
 
     if (confirmClear) {
@@ -240,8 +212,6 @@ function clearHistory() {
 }
 
 
-// --- 5. DOM Manipulation & Utilities ---
-// (No changes needed for updateHistoryUI, downloadHistory, but they remain part of the code)
 
 function getCurrentTimeFormatted() {
     // แนะนำให้ใช้ toLocaleTimeString เพื่อความง่าย
@@ -257,7 +227,6 @@ function updateHistoryUI() {
         return;
     }
 
-    // เรียงจากใหม่ไปเก่า
     [...scanHistoryList].reverse().forEach((item, index) => {
         const row = document.createElement('tr');
         row.innerHTML = `
