@@ -1,4 +1,4 @@
-// script.js (ฉบับปรับปรุงตรรกะความปลอดภัยสูง แก้ปัญหาจอค้าง 100%)
+// script.js (ฉบับเพรียวบาง ป้องกันการโหลดแครชและค้างอย่างมีประสิทธิภาพ)
 
 let html5QrCode;
 let isProcessing = false;
@@ -32,7 +32,7 @@ function playBeepSound(type = 'success') {
     }
 }
 
-// ⏳ บันทึกเวลาปัจจุบัน
+// ⏳ ดึงเวลาปัจจุบัน
 function getCurrentTimeFormatted() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -41,7 +41,7 @@ function getCurrentTimeFormatted() {
     return `${hours}:${minutes}:${seconds} น.`;
 }
 
-// 🔄 อัปเดต UI รายการตารางประวัติ
+// 🔄 อัปเดตตารางรายการประวัติ
 function updateHistoryUI() {
     const tbody = document.getElementById('history-tbody');
     tbody.innerHTML = '';
@@ -51,8 +51,10 @@ function updateHistoryUI() {
         return;
     }
 
+    // เรียงของใหม่ขึ้นแสดงด้านบนสุด
     for (let i = scanHistoryList.length - 1; i >= 0; i--) {
         const item = scanHistoryList[i];
+
         const row = document.createElement('tr');
 
         const cellIndex = document.createElement('td');
@@ -114,11 +116,12 @@ function downloadHistory() {
 // 🎯 ฟังก์ชันสแกนสำเร็จ
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
-    isProcessing = true; // ล็อกระบบสแกนชั่วคราวเพื่อประมวลผลข้อมูล
+    isProcessing = true; // ล็อกป้อนกันการสแกนซ้ำซ้อนชั่วคราว
 
     const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
 
+    // 🛡️ เช็คค่าว่าง
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
@@ -131,6 +134,7 @@ function onScanSuccess(decodedText, decodedResult) {
     const endIndex = 30;
     let extractedText = "";
 
+    // 2. ตรวจสอบเงื่อนไขความยาว 22 หลัก
     if (cleanedText.length >= endIndex) {
         extractedText = cleanedText.substring(startIndex, endIndex).trim();
         const digitCount = extractedText.length;
@@ -138,11 +142,12 @@ function onScanSuccess(decodedText, decodedResult) {
         if (digitCount !== 22) {
             playBeepSound('warning');
             document.getElementById('result-all').innerText = cleanedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ รหัสตัดได้ยาว ${digitCount} หลัก (ต้องการ 22 หลัก)</span>`;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ รหัสสั้นหรือยาวไปได้ ${digitCount} หลัก (ต้องการ 22 หลัก)</span>`;
             setTimeout(() => { isProcessing = false; }, 1500);
             return;
         }
 
+        // 🔍 ตรวจเช็คข้อมูลซ้ำในประวัติ
         const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
 
         if (isDuplicate) {
@@ -153,6 +158,7 @@ function onScanSuccess(decodedText, decodedResult) {
             return;
         }
 
+        // ✅ สแกนสำเร็จ ครบถ้วน ไม่ซ้ำ
         playBeepSound('success');
         document.getElementById('result-all').innerText = cleanedText;
         splitElement.innerHTML = `<span style="color: #1d4ed8; font-weight: 700;">${extractedText}</span>`;
@@ -166,101 +172,21 @@ function onScanSuccess(decodedText, decodedResult) {
     } else {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ รหัสต้นฉบับยาว ${cleanedText.length} หลัก (สั้นเกินไป ไม่สามารถดึงตำแหน่งที่ 9-30 ได้)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ รหัสต้นฉบับสั้นเกินไป (${cleanedText.length} หลัก) ไม่สามารถดึงตำแหน่งที่ 9-30 ได้</span>`;
         setTimeout(() => { isProcessing = false; }, 1500);
         return;
     }
 
+    // สแกนปกติผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
 }
 
-// 🩺 ฟังก์ชันหลักสำหรับวิเคราะห์และตรวจสอบระบบกล้อง (ตรรกะใหม่ ปลอดภัยสูงสุด ไม่นำพาจอค้าง)
-async function checkCameraStatus() {
-    const diagBox = document.getElementById('diagnostic-box');
-    const diagIcon = document.getElementById('diag-icon');
-    const diagMsg = document.getElementById('diag-message');
-
-    // ตรวจสอบขั้นต้น
-    if (!diagBox || !diagIcon || !diagMsg) return;
-
-    // 1. ตรวจสอบความปลอดภัย HTTPS (Secure Context)
-    if (!window.isSecureContext) {
-        diagBox.className = "diag-box diag-error";
-        diagIcon.innerText = "❌";
-        diagMsg.innerHTML = "<strong>ระบบไม่ปลอดภัย:</strong> คุณไม่ได้ใช้งานผ่าน HTTPS หรือ localhost เบราว์เซอร์จะบล็อกกล้อง 100%";
-        return;
-    }
-
-    // 2. ตรวจสอบว่าเบราว์เซอร์รองรับ API กล้องหรือไม่
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        diagBox.className = "diag-box diag-error";
-        diagIcon.innerText = "❌";
-        diagMsg.innerHTML = "<strong>อุปกรณ์ไม่รองรับ:</strong> เบราว์เซอร์หรืออุปกรณ์นี้ไม่มีพอร์ตสำหรับเรียกเปิดกล้อง";
-        return;
-    }
-
-    try {
-        // 3. ตรวจสอบจำนวนเลนส์กล้องที่มีจริงบนเครื่อง
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(device => device.kind === 'videoinput');
-
-        if (cameras.length === 0) {
-            diagBox.className = "diag-box diag-error";
-            diagIcon.innerText = "🔌";
-            diagMsg.innerHTML = "<strong>ไม่พบกล้อง:</strong> ไม่พบกล้องเว็บแคมหรือเลนส์ถ่ายภาพบนเครื่องนี้";
-            return;
-        }
-
-        // 4. ตรวจสอบสิทธิ์การเข้าถึง (Safe Permissions Query)
-        // ใส่ try-catch ซ้อนภายใน เพื่อป้องกันไม่ให้เบราว์เซอร์ที่ไม่มี Permission Query API แครชเงียบ
-        let permissionGranted = false;
-        try {
-            if (navigator.permissions && navigator.permissions.query) {
-                const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-
-                if (permissionStatus.state === 'granted') {
-                    permissionGranted = true;
-                } else if (permissionStatus.state === 'prompt') {
-                    diagBox.className = "diag-box diag-warn";
-                    diagIcon.innerText = "🔔";
-                    diagMsg.innerHTML = "<strong>รออนุญาต:</strong> พร้อมใช้งาน กรุณากด <strong>'อนุญาต (Allow)'</strong> เมื่อระบบขอใช้กล้อง";
-                    return;
-                } else if (permissionStatus.state === 'denied') {
-                    diagBox.className = "diag-box diag-error";
-                    diagIcon.innerText = "🚫";
-                    diagMsg.innerHTML = "<strong>กล้องถูกบล็อก:</strong> กรุณากดปุ่มแม่กุญแจข้างแถบ URL และเปลี่ยนสิทธิ์เป็น 'อนุญาต'";
-                    return;
-                }
-
-                // สังเกตการณ์ตรวจจับกรณีสลับเปลี่ยนสิทธิ์
-                permissionStatus.onchange = () => {
-                    checkCameraStatus();
-                };
-            }
-        } catch (permissionError) {
-            console.warn("ไม่รองรับ Permissions API ในระดับลึก แต่ตรวจพบอุปกรณ์กล้องปกติ", permissionError);
-        }
-
-        // หากผ่านเกณฑ์ทั้งหมดเสร็จสิ้น หรือเบราว์เซอร์ผ่านกลไกการจองพอร์ต
-        diagBox.className = "diag-box diag-ready";
-        diagIcon.innerText = "✅";
-        diagMsg.innerHTML = "<strong>ระบบพร้อมใช้งาน:</strong> ตรวจพบอุปกรณ์กล้องแล้ว กดปุ่มด้านล่างเพื่อเริ่มการสแกน";
-
-    } catch (error) {
-        // ดักจับข้อยกเว้นทุกประการและแสดงเป็นข้อความความล้มเหลว แทนการปล่อยให้แอปค้างเงียบ
-        diagBox.className = "diag-box diag-error";
-        diagIcon.innerText = "⚠️";
-        diagMsg.innerHTML = "<strong>การตรวจสอบระบบล้มเหลว:</strong> " + error.message;
-        console.error("Diagnostic failed: ", error);
-    }
-}
-
-// 🎥 เริ่มสแกนกล้อง
+// 🎥 ฟังก์ชันเปิดกล้องเว็บแคม
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
-    document.getElementById('result-all').innerHTML = "<span style='color:#3b82f6;'>กำลังประมวลผลภาพกล้อง...</span>";
+    document.getElementById('result-all').innerHTML = "<span style='color:#3b82f6;'>กำลังประมวลผลกล้อง...</span>";
 
     if (html5QrCode) {
         try { html5QrCode.clear(); } catch (e) { }
@@ -270,45 +196,30 @@ function startScanner() {
 
     const config = {
         fps: 15,
-        qrbox: 250,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+        qrbox: 240
     };
 
-    const cameraConstraints = {
-        facingMode: "environment",
-        videoConstraints: {
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-        }
-    };
-
+    // เปิดกล้องหลังสไตล์มาตรฐาน (มีความเข้ากันได้สูงที่สุดกับโทรศัพท์ทุกรุ่น)
     html5QrCode.start(
-        cameraConstraints,
+        { facingMode: "environment" },
         config,
         onScanSuccess
     ).then(() => {
         document.getElementById('overlay').style.display = 'flex';
         document.getElementById('result-all').innerText = "กล้องพร้อมใช้งาน กรุณานำ QR Code มาจ่อตรงกลางกรอบ";
         updateHistoryUI();
-
-        // เมื่อกล้องเปิดใช้งานสำเร็จ ให้ซ่อนกล่องสถานะตรวจสอบ Diagnostic ไปเพื่อความสะอาดของหน้าจอ
-        const diagBox = document.getElementById('diagnostic-box');
-        if (diagBox) diagBox.style.display = 'none';
-
     }).catch(err => {
-        console.warn("ไม่สามารถรันกล้องหลังแบบกำหนดสเปกได้ สลับเข้าสู่โหมดกล้องอัตโนมัติ...", err);
+        console.warn("ไม่สามารถรันกล้องหลังเฉพาะเจาะจงได้ ลองใช้งานโหมดกล้องเริ่มต้น...", err);
 
+        // แผนสำรอง: เปิดกล้องตัวแรกที่มีบนอุปกรณ์ (เช่น ใน PC หรือ Notebook)
         html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 15, qrbox: 220 },
+            { facingMode: "user" },
+            config,
             onScanSuccess
         ).then(() => {
             document.getElementById('overlay').style.display = 'flex';
-            document.getElementById('result-all').innerText = "กล้องพร้อมใช้งาน (โหมดมาตรฐาน)";
+            document.getElementById('result-all').innerText = "กล้องหน้าพร้อมใช้งาน";
             updateHistoryUI();
-
-            const diagBox = document.getElementById('diagnostic-box');
-            if (diagBox) diagBox.style.display = 'none';
         }).catch(fallbackErr => {
             document.getElementById('start-btn').style.display = 'inline-block';
             document.getElementById('result-all').innerHTML = `<span style="color:#ef4444; font-weight:bold;">Error: ${fallbackErr}</span>`;
@@ -317,5 +228,5 @@ function startScanner() {
     });
 }
 
-// เรียกใช้การรันสถานะสุขภาพของกล้องเมื่อโหลดหน้าเว็บ
-window.addEventListener('DOMContentLoaded', checkCameraStatus);
+// โหลด UI ตารางว่างเริ่มแรกเมื่อเปิดหน้าเว็บ
+window.addEventListener('DOMContentLoaded', updateHistoryUI);
