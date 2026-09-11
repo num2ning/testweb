@@ -201,7 +201,7 @@ function startScanner() {
 
 
             const config = {
-                fps: 30,
+                fps: 20,
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
                 disableFlip: false
