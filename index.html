@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CGD QR AFMIS SCANNER </title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style2.css">
+
+    <script src="code.js" type="text/javascript"></script>
+
+</head>
+
+<body>
+    <div class="main-container">
+        <div class="header-section">
+            <img src="logo.jpg" alt="CGD Logo">
+            <h1>CGD QR AFMIS SCANNER</h1>
+            <p>ระบบสแกน QR Code ครุภัณฑ์ในระบบ AFMIS</p>
+        </div>
+        <div class="result-row" style="border-top: 1px solid #e5e7eb; padding-top: 0.75rem; margin-top: 0.75rem;">
+            <div class="result-title">รหัสครุภัณฑ์ AFMIS :</div>
+            <div class="result-value text-extracted" id="result-split">-</div>
+        </div>
+
+        <div id="scanner-section">
+
+
+            <div class="scanner-wrapper">
+                <div id="reader"></div>
+                <div class="scan-overlay" id="overlay">
+                    <div class="focus-box">
+                        <div class="scan-laser"></div>
+                        <div class="focus-corner-bottom"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" id="start-btn" onclick="startScanner()">📷 เริ่มต้นสแกนข้อมูล</button>
+            </div>
+
+            <div class="result-container">
+                <div class="result-row">
+                    <div class="result-title">ข้อมูลครุภัณฑ์ :</div>
+                    <div class="result-value text-full" id="result-all">กำลังรอการสแกน...</div>
+                </div>
+
+            </div>
+
+            <div class="history-container">
+                <div class="history-header">
+                    <span>📋 รายการครุภัณฑ์ : </span>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-clear" onclick="clearHistory()">🗑️ ล้างรายการ</button>
+                        <button class="btn btn-download" onclick="downloadHistory()">📥 Download</button>
+                    </div>
+                </div>
+                <div class="history-table-wrapper">
+                    <table class="history-table">
+                        <tbody id="history-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+</body>
+
+</html>
