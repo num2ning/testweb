@@ -106,52 +106,14 @@ function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
     isProcessing = true;
 
+
     const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
-
 
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
-
-        setTimeout(() => { isProcessing = false; }, 1500);
-        return;
-    }
-
-    let extractedText = "";
-    let cutMethodMessage = "";
-
-
-    if (cleanedText.length < 30) {
-
-        extractedText = cleanedText.substring(0, 22).trim();
-        cutMethodMessage = "(ตัดตำแหน่ง 1-22)";
-    } else {
-
-        extractedText = cleanedText.substring(8, 30).trim();
-        cutMethodMessage = "(ตัดตำแหน่ง 9-30)";
-    }
-
-    const digitCount = extractedText.length;
-
-
-    if (digitCount !== 22) {
-        playBeepSound('warning');
-        document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ที่ถูกต้อง ${cutMethodMessage} (${digitCount} Digits / ต้องการ 22)</span>`;
-
-        setTimeout(() => { isProcessing = false; }, 1500);
-        return;
-    }
-
-
-    const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
-
-    if (isDuplicate) {
-        playBeepSound('warning');
-        document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
 
 
         setTimeout(() => {
@@ -160,17 +122,68 @@ function onScanSuccess(decodedText, decodedResult) {
         return;
     }
 
+    const startIndex = 8;
+    const endIndex = 30;
+    let extractedText = "";
 
-    playBeepSound('success');
-    document.getElementById('result-all').innerText = cleanedText;
-    splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
 
-    scanHistoryList.push({
-        text: extractedText,
-        time: getCurrentTimeFormatted()
-    });
+    if (cleanedText.length >= endIndex) {
+        extractedText = cleanedText.substring(startIndex, endIndex).trim();
+        const digitCount = extractedText.length;
 
-    updateHistoryUI();
+        if (digitCount !== 22) {
+            playBeepSound('warning');
+            document.getElementById('result-all').innerText = cleanedText;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ที่ถูกต้อง (${digitCount} Digits / ต้องการ 22)</span>`;
+
+
+            setTimeout(() => {
+                isProcessing = false;
+            }, 1500);
+            return;
+        }
+
+
+        const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
+
+        if (isDuplicate) {
+            playBeepSound('warning');
+
+            document.getElementById('result-all').innerText = cleanedText;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
+
+
+            setTimeout(() => {
+                isProcessing = false;
+                console.log("ล้างสถานะล็อกหลังเจอค่าซ้ำเรียบร้อย...");
+            }, 1500);
+            return;
+        }
+
+
+        playBeepSound('success');
+
+        document.getElementById('result-all').innerText = cleanedText;
+        splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
+
+        scanHistoryList.push({
+            text: extractedText,
+            time: getCurrentTimeFormatted()
+        });
+
+        updateHistoryUI();
+
+    } else {
+        playBeepSound('warning');
+        document.getElementById('result-all').innerText = cleanedText;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 22 ตัวอักษร)</span>`;
+
+
+        setTimeout(() => {
+            isProcessing = false;
+        }, 1500);
+        return;
+    }
 
 
     setTimeout(() => {
