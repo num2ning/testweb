@@ -104,89 +104,75 @@ function downloadHistory() {
 // 🎯 ฟังก์ชันสแกนสำเร็จ
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
-    isProcessing = true; // ล็อกระบบสแกนชั่วคราวเพื่อประมวลผลข้อมูล
+    isProcessing = true; // ล็อกระบบชั่วคราว ป้องกันการสแกนซ้ำซ้อนในเสี้ยววินาที
 
-    // 1. ดักสิทธิและตัดช่องว่างหัวท้ายที่อาจติดมาในรหัส QR
     const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
 
-    // 🛡️ ป้องกันค่าว่างดิบ
+    // 🛡️ 1. ตรวจสอบค่าว่างเปล่า
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
         splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
 
-        // 🔄 ปลดล็อกกล้องทันทีเพื่อให้สแกนต่อได้โดยไม่ค้าง
-        setTimeout(() => {
-            isProcessing = false;
-        }, 1500);
+        setTimeout(() => { isProcessing = false; }, 1500);
         return;
     }
 
-    const startIndex = 8;
-    const endIndex = 30;
     let extractedText = "";
+    let cutMethodMessage = "";
 
-    // 2. ตรวจสอบเงื่อนไขความยาว 22 Digits (ดึงตำแหน่ง 9 ถึง 30 ต้นฉบับต้องมีอย่างน้อย 30 ตัวอักษร)
-    if (cleanedText.length >= endIndex) {
-        extractedText = cleanedText.substring(startIndex, endIndex).trim();
-        const digitCount = extractedText.length;
-
-        if (digitCount !== 22) {
-            playBeepSound('warning');
-            document.getElementById('result-all').innerText = cleanedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อมูลไม่ตรงมาตรฐาน (${digitCount} Digits / ต้องการ 22)</span>`;
-
-            // 🔄 ข้อมูลไม่ได้ขนาด ปลดล็อกกล้องเพื่อให้ทำงานสแกนต่อได้
-            setTimeout(() => {
-                isProcessing = false;
-            }, 1500);
-            return;
-        }
-
-        // 🔍 ตรวจสอบความซ้ำในประวัติ
-        const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
-
-        if (isDuplicate) {
-            playBeepSound('warning'); // แจ้งเสียงเตือนซ้ำ (เสียงบี๊บต่ำ)
-
-            document.getElementById('result-all').innerText = cleanedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
-
-            // 🔄 ตรวจพบรหัสซ้ำ ปลดล็อกกล้องให้ทำงานต่ออัตโนมัติภายใน 1.5 วินาที
-            setTimeout(() => {
-                isProcessing = false;
-                console.log("ล้างสถานะล็อกหลังเจอค่าซ้ำเรียบร้อย...");
-            }, 1500);
-            return;
-        }
-
-        // ✅ ผ่านเกณฑ์ความถูกต้องทั้งหมด (ไม่ว่าง, ไม่ซ้ำ, และมี 22 Digits พอดี)
-        playBeepSound('success'); // แจ้งเตือนสแกนสำเร็จด้วยเสียงติ๊ดแหลมสูง
-
-        document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
-
-        scanHistoryList.push({
-            text: extractedText,
-            time: getCurrentTimeFormatted()
-        });
-
-        updateHistoryUI();
-
+    // 🛡️ 2. ตรวจสอบเงื่อนไขความยาวและทำการตัดข้อความ
+    if (cleanedText.length < 30) {
+        // 🔹 กรณีข้อความ น้อยกว่า 30 ตัวอักษร -> ตัดตำแหน่งที่ 1 ถึง ตำแหน่งที่ 22 (ดัชนี 0 ถึง 22)
+        extractedText = cleanedText.substring(0, 22).trim();
+        cutMethodMessage = "(ตัดตำแหน่ง 1-22)";
     } else {
+        // 🔸 กรณีข้อความ ตั้งแต่ 30 ตัวอักษรขึ้นไป -> ตัดตำแหน่งที่ 9 ถึง ตำแหน่งที่ 30 เหมือนเดิม (ดัชนี 8 ถึง 30)
+        extractedText = cleanedText.substring(8, 30).trim();
+        cutMethodMessage = "(ตัดตำแหน่ง 9-30)";
+    }
+
+    const digitCount = extractedText.length;
+
+    // 🛡️ 3. ตรวจสอบความถูกต้องของความยาวผลลัพธ์ (ต้องได้ 22 หลักเท่านั้น)
+    if (digitCount !== 22) {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 30 ตัวอักษร)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ที่ถูกต้อง ${cutMethodMessage} (${digitCount} Digits / ต้องการ 22)</span>`;
 
-        // 🔄 ปลดล็อกกล้องเมื่อต้นฉบับสั้นเกินไป
+        setTimeout(() => { isProcessing = false; }, 1500);
+        return;
+    }
+
+    // 🛡️ 4. ตรวจสอบหาความซ้ำซ้อนในประวัติ
+    const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
+
+    if (isDuplicate) {
+        playBeepSound('warning');
+        document.getElementById('result-all').innerText = cleanedText;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
+
+        // สลัดตัวล็อกหลังตรวจพบค่าซ้ำทันทีใน 1.5 วินาที เพื่อไม่ให้ระบบสแกนค้าง
         setTimeout(() => {
             isProcessing = false;
         }, 1500);
         return;
     }
 
-    // กรณีสแกนค่าปกติผ่านสำเร็จ พักวงจรสแกน 2.5 วินาที
+    // ✅ ผ่านทุกเงื่อนไข (สแกนเสียงบี๊บสำเร็จ เข้าระบบ)
+    playBeepSound('success');
+    document.getElementById('result-all').innerText = cleanedText;
+    splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
+
+    scanHistoryList.push({
+        text: extractedText,
+        time: getCurrentTimeFormatted()
+    });
+
+    updateHistoryUI();
+
+    // พักเซนเซอร์ปกติ 2.5 วินาที ก่อนสแกนแผ่นถัดไป
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
