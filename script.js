@@ -193,10 +193,10 @@ function onScanSuccess(decodedText, decodedResult) {
 // script.js (แทนที่ฟังก์ชัน startScanner ด้วยเวอร์ชันเสถียรภาพสูง ป้องกันกล้องดับวูบ)
 
 // 🎥 ฟังก์ชันเปิดกล้อง (ฉบับแก้ไขปัญหากล้องดับวูบบนมือถือ Android/iOS)
+// 🎥 ฟังก์ชันเปิดกล้อง (ปรับปรุงประสิทธิภาพการจับภาพและระบบ Auto-Focus เพื่อการสแกนที่รวดเร็ว)
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
 
-    // แสดงข้อความสถานะบนจอให้ทราบว่าระบบกำลังทำอะไรอยู่
     document.getElementById('result-all').innerHTML = "<span style='color:#3b82f6;'>กำลังเชื่อมต่อกับฮาร์ดแวร์กล้อง...</span>";
 
     if (html5QrCode) {
@@ -205,54 +205,68 @@ function startScanner() {
 
     html5QrCode = new Html5Qrcode("reader");
 
-    // ⚙️ การตั้งค่าที่ปลอดภัยที่สุดสำหรับมือถือทุกรุ่น (Safe Mode Config)
+    // ⚙️ การตั้งค่าที่ให้ภาพคมชัดและจับโฟกัสขอบ QR Code ได้แม่นยำที่สุด
     const config = {
-        fps: 10, // กลับมาใช้ 10 fps เพื่อลดภาระ CPU ของเครื่อง ป้องกันเบราว์เซอร์เด้งหลุด
+        fps: 20, // ปรับมาที่ 20 fps เพื่อช่วยให้อัตราสแกนถี่ขึ้นโดยไม่โหลด CPU เกินไป
 
-        // 🎯 ใช้ฟังก์ชันคำนวณขนาดกล่อง QR อัตโนมัติ (Responsive) 
-        // ป้องกัน Error กรณีกล่อง 250px ใหญ่เกินกว่าความกว้างของหน้าจอมือถือ
+        // 🎯 ปรับปรุงสัดส่วนกล่องสแกนให้อยู่ที่ 65% ของหน้าจอ เพื่อให้กล้องสามารถจับภาพรอบนอกได้ชัดเจน
         qrbox: function (viewfinderWidth, viewfinderHeight) {
-            // คำนวณให้กล่องสแกนมีขนาด 70% ของด้านที่แคบที่สุดของหน้าจอ
-            let minEdgePercentage = 0.70;
+            let minEdgePercentage = 0.65;
             let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-            let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+            // ป้องกันขนาดกล่องเล็กเกินไปจนถือเล็งยาก (ขั้นต่ำสุด 200px)
+            let qrboxSize = Math.max(Math.floor(minEdgeSize * minEdgePercentage), 200);
 
             return {
                 width: qrboxSize,
                 height: qrboxSize
             };
         }
-        // ❌ เอา aspectRatio: 1.0 ออกเด็ดขาด! ปล่อยให้กล้องใช้สัดส่วน 16:9 ธรรมชาติของเครื่อง
     };
 
-    // เปิดใช้งานกล้องหลัง
+    // 🎥 กำหนดสเปกของกล้องที่ต้องการ (บังคับให้ระบบเลือกความคมชัดระดับ HD และเปิดโฟกัสสูงสุด)
+    const cameraConfig = {
+        facingMode: "environment", // บังคับกล้องหลังมือถือ
+
+        // 🎯 บังคับให้เบราว์เซอร์สุ่มความละเอียดภาพที่ระดับความละเอียด HD 720p 
+        // ซึ่งเป็นระยะที่อ่านจุด QR Code ขนาดเล็กได้ดีที่สุด และไม่ทำให้หน้าจอกระตุก
+        videoConstraints: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            // สั่งเปิดระบบโฟกัสแบบต่อเนื่องแบบเรียลไทม์ (Continuous Auto-Focus)
+            focusMode: { ideal: "continuous" }
+        }
+    };
+
+    // เริ่มเปิดใช้งานกล้อง
     html5QrCode.start(
-        { facingMode: "environment" },
+        cameraConfig,
         config,
         onScanSuccess
     ).then(() => {
-        // หากเปิดสำเร็จ
         document.getElementById('overlay').style.display = 'flex';
-        document.getElementById('result-all').innerText = "กล้องทำงานปกติ กำลังรอรับภาพ...";
+        document.getElementById('result-all').innerText = "กล้องทำงานปกติ กรุณาถือโทรศัพท์ห่างจาก QR Code ประมาณ 15-20 ซม.";
         updateHistoryUI();
     }).catch(err => {
-        // 🔄 แผนสำรอง: หากกล้องหลังมีปัญหา ให้เปิดกล้องตัวไหนก็ได้ที่มีอยู่ในเครื่อง
-        console.warn("ไม่สามารถเปิดกล้องหลังเฉพาะเจาะจงได้ ลองเปิดกล้องทั่วไป...", err);
+        console.warn("ไม่สามารถเปิดกล้องหลังแบบความคมชัดสูงได้ ลองสลับแผนสำรอง...", err);
 
+        // 🔄 แผนสำรอง: หากกล้องหลังแบบ HD มีปัญหา ให้เปิดกล้องมาตรฐานของอุปกรณ์
         html5QrCode.start(
-            { facingMode: "user" }, // สลับลองกล้องหน้าดูเผื่อเป็นทางเลือก
-            config,
+            { facingMode: "environment" }, // ใช้ค่าเริ่มต้นไร้ข้อจำกัด Resolution
+            { fps: 20, qrbox: { width: 220, height: 220 } },
             onScanSuccess
-        ).catch(fallbackErr => {
+        ).then(() => {
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('result-all').innerText = "กล้องทำงานปกติ (โหมดภาพมาตรฐาน)";
+            updateHistoryUI();
+        }).catch(fallbackErr => {
             document.getElementById('start-btn').style.display = 'inline-block';
-
-            // แสดง Error ออกที่หน้าจอตัวใหญ่ๆ จะได้ทราบสาเหตุที่แท้จริง
             const errorMsg = fallbackErr.message || fallbackErr;
             document.getElementById('result-all').innerHTML = `<span style="color:#ef4444; font-weight:bold;">Error: ${errorMsg}</span>`;
             alert("❌ ไม่สามารถสตาร์ทระบบกล้องได้:\n" + errorMsg);
         });
     });
 }
+
 
 
 
