@@ -192,93 +192,68 @@ function onScanSuccess(decodedText, decodedResult) {
 
 // script.js (แทนที่ฟังก์ชัน startScanner ด้วยเวอร์ชันเสถียรภาพสูง ป้องกันกล้องดับวูบ)
 
+// 🎥 ฟังก์ชันเปิดกล้อง (ฉบับแก้ไขปัญหากล้องดับวูบบนมือถือ Android/iOS)
 function startScanner() {
-    // 1. ซ่อนปุ่มเปิดกล้องเพื่อป้องกันการกดเบิ้ลซ้ำ
     document.getElementById('start-btn').style.display = 'none';
 
-    // 2. เคลียร์อินสแตนซ์เก่าออกไปก่อน (ถ้ามีค้างอยู่) เพื่อป้องกันการจองสิทธิ์กล้องซ้อนกัน
+    // แสดงข้อความสถานะบนจอให้ทราบว่าระบบกำลังทำอะไรอยู่
+    document.getElementById('result-all').innerHTML = "<span style='color:#3b82f6;'>กำลังเชื่อมต่อกับฮาร์ดแวร์กล้อง...</span>";
+
     if (html5QrCode) {
-        try {
-            html5QrCode.clear();
-        } catch (e) {
-            console.warn("เคลียร์กล้องค้างเดิมสำเร็จ", e);
-        }
+        try { html5QrCode.clear(); } catch (e) { }
     }
 
-    // 3. เริ่มต้นกระบวนการค้นหาและรันกล้อง
-    Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length) {
+    html5QrCode = new Html5Qrcode("reader");
 
-            // สร้างตัวแปรควบคุม ID Element ของกล้องใหม่ให้ตรงกับ <div id="reader">
-            html5QrCode = new Html5Qrcode("reader");
+    // ⚙️ การตั้งค่าที่ปลอดภัยที่สุดสำหรับมือถือทุกรุ่น (Safe Mode Config)
+    const config = {
+        fps: 10, // กลับมาใช้ 10 fps เพื่อลดภาระ CPU ของเครื่อง ป้องกันเบราว์เซอร์เด้งหลุด
 
-            // ⚙️ การตั้งค่าพารามิเตอร์ที่เป็นมิตรกับระบบเลนส์ (ป้องกันระบบดับวูบ)
-            const config = {
-                fps: 20, // ปรับลดลงมาที่ 20 เพื่อลดการใช้ทรัพยากร CPU ป้องกันกล้องปิดตัวเอง
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0, // ล็อกอัตราส่วนให้เป็นสี่เหลี่ยมจัตุรัสตามกล่องกรอบเล็ง
-                disableFlip: false
+        // 🎯 ใช้ฟังก์ชันคำนวณขนาดกล่อง QR อัตโนมัติ (Responsive) 
+        // ป้องกัน Error กรณีกล่อง 250px ใหญ่เกินกว่าความกว้างของหน้าจอมือถือ
+        qrbox: function (viewfinderWidth, viewfinderHeight) {
+            // คำนวณให้กล่องสแกนมีขนาด 70% ของด้านที่แคบที่สุดของหน้าจอ
+            let minEdgePercentage = 0.70;
+            let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+            let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+
+            return {
+                width: qrboxSize,
+                height: qrboxSize
             };
-
-            // 🎯 ลองเปิด "กล้องหลัง" (facingMode: "environment")
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                onScanSuccess
-            ).then(() => {
-                // แสดงกรอบเล็งสีฟ้าและเปิดการทำงานของเส้นเลเซอร์
-                document.getElementById('overlay').style.display = 'flex';
-                updateHistoryUI();
-            }).catch(err => {
-                console.warn("พยายามเปิดกล้องหลังแบบอิง facingMode ล้มเหลว กำลังใช้แผนสำรอง...", err);
-
-                // 🔄 [แผนสำรองที่ 1] บังคับเจาะจง ID ของกล้องหลังโดยตรงจากรายการที่เช็คได้
-                // โดยปกติกล้องหลังของมือถือมักจะอยู่ที่ลำดับสุดท้าย หรือลำดับที่ 1-2 ในระบบอาร์เรย์
-                let backCamera = devices.find(device =>
-                    device.label.toLowerCase().includes('back') ||
-                    device.label.toLowerCase().includes('environment') ||
-                    device.label.toLowerCase().includes('หลัง')
-                );
-
-                // หากหาป้ายชื่อกล้องหลังไม่เจอ ให้เลือกใช้กล้องตัวสุดท้ายของอุปกรณ์แทน (ซึ่งมักจะเป็นกล้องหลัง)
-                const selectedCameraId = backCamera ? backCamera.id : devices[devices.length - 1].id;
-
-                html5QrCode.start(
-                    selectedCameraId,
-                    config,
-                    onScanSuccess
-                ).then(() => {
-                    document.getElementById('overlay').style.display = 'flex';
-                    updateHistoryUI();
-                }).catch(fallbackErr => {
-
-                    // 🔄 [แผนสำรองที่ 2] หากยังไม่ได้ ให้เปิดกล้องเว็บแคมพื้นฐานตัวแรกสุดของเครื่องแทน
-                    console.warn("ไม่สามารถระบุกล้องหลังได้ กำลังสลับไปใช้กล้องตัวแรกสุดของเครื่อง...", fallbackErr);
-
-                    html5QrCode.start(
-                        devices[0].id,
-                        config,
-                        onScanSuccess
-                    ).then(() => {
-                        document.getElementById('overlay').style.display = 'flex';
-                        updateHistoryUI();
-                    }).catch(finalErr => {
-                        // แจ้งข้อผิดพลาดสุดท้าย
-                        document.getElementById('start-btn').style.display = 'inline-block';
-                        alert("❌ ไม่สามารถเปิดระบบวิดีโอกล้องได้: " + finalErr.message);
-                    });
-                });
-            });
-
-        } else {
-            document.getElementById('start-btn').style.display = 'inline-block';
-            alert("❌ ตรวจสอบอุปกรณ์ฮาร์ดแวร์: ไม่พบกล้องติดตั้งอยู่บนระบบ");
         }
+        // ❌ เอา aspectRatio: 1.0 ออกเด็ดขาด! ปล่อยให้กล้องใช้สัดส่วน 16:9 ธรรมชาติของเครื่อง
+    };
+
+    // เปิดใช้งานกล้องหลัง
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess
+    ).then(() => {
+        // หากเปิดสำเร็จ
+        document.getElementById('overlay').style.display = 'flex';
+        document.getElementById('result-all').innerText = "กล้องทำงานปกติ กำลังรอรับภาพ...";
+        updateHistoryUI();
     }).catch(err => {
-        document.getElementById('start-btn').style.display = 'inline-block';
-        alert("❌ ไม่สามารถเข้าถึงพอร์ตกล้องได้ (กรุณาตรวจสอบสิทธิ์การแชร์กล้องในเบราว์เซอร์)\nรายละเอียด: " + err);
+        // 🔄 แผนสำรอง: หากกล้องหลังมีปัญหา ให้เปิดกล้องตัวไหนก็ได้ที่มีอยู่ในเครื่อง
+        console.warn("ไม่สามารถเปิดกล้องหลังเฉพาะเจาะจงได้ ลองเปิดกล้องทั่วไป...", err);
+
+        html5QrCode.start(
+            { facingMode: "user" }, // สลับลองกล้องหน้าดูเผื่อเป็นทางเลือก
+            config,
+            onScanSuccess
+        ).catch(fallbackErr => {
+            document.getElementById('start-btn').style.display = 'inline-block';
+
+            // แสดง Error ออกที่หน้าจอตัวใหญ่ๆ จะได้ทราบสาเหตุที่แท้จริง
+            const errorMsg = fallbackErr.message || fallbackErr;
+            document.getElementById('result-all').innerHTML = `<span style="color:#ef4444; font-weight:bold;">Error: ${errorMsg}</span>`;
+            alert("❌ ไม่สามารถสตาร์ทระบบกล้องได้:\n" + errorMsg);
+        });
     });
 }
+
 
 
 
