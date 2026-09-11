@@ -1,10 +1,10 @@
-
+// script.js (ฉบับเสถียรสูงสุด - แก้ไขการสแกนไม่เข้าประวัติและไม่ตอบสนอง)
 
 let html5QrCode;
 let isProcessing = false;
 let scanHistoryList = [];
 
-
+// 🔊 ฟังก์ชันสร้างเสียงบี๊บ
 function playBeepSound(type = 'success') {
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -32,7 +32,7 @@ function playBeepSound(type = 'success') {
     }
 }
 
-
+// ⏳ บันทึกเวลาปัจจุบัน
 function getCurrentTimeFormatted() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -41,16 +41,17 @@ function getCurrentTimeFormatted() {
     return `${hours}:${minutes}:${seconds} น.`;
 }
 
-
+// 🔄 อัปเดต UI รายการตารางประวัติ
 function updateHistoryUI() {
     const tbody = document.getElementById('history-tbody');
     tbody.innerHTML = '';
 
     if (scanHistoryList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ไม่มีข้อมูล</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">ยังไม่มีประวัติการสแกนเข้าสู่ระบบ</td></tr>`;
         return;
     }
 
+    // เรียงประวัติล่าสุดไว้บนสุด
     for (let i = scanHistoryList.length - 1; i >= 0; i--) {
         const item = scanHistoryList[i];
 
@@ -76,9 +77,22 @@ function updateHistoryUI() {
     }
 }
 
+// 🗑️ ล้างประวัติทั้งหมด
+function clearHistory() {
+    const confirmClear = confirm("คุณต้องการล้างประวัติการสแกนทั้งหมดใช่หรือไม่?");
+    if (confirmClear) {
+        scanHistoryList = [];
+        updateHistoryUI();
+        document.getElementById('result-all').innerText = "รอสแกนแผ่นใหม่...";
+        document.getElementById('result-split').innerText = "-";
+        playBeepSound('warning');
+    }
+}
+
+// 📥 ดาวน์โหลดประวัติเป็น .txt
 function downloadHistory() {
     if (scanHistoryList.length === 0) {
-        alert("ไม่มีข้อมูล");
+        alert("ยังไม่มีข้อมูลประวัติการสแกนให้ดาวน์โหลดครับ");
         return;
     }
 
@@ -98,26 +112,22 @@ function downloadHistory() {
 
     URL.revokeObjectURL(url);
 }
-
-
+// 🎯 ฟังก์ชันที่จะทำงานเมื่อกล้องจับและถอดรหัสสำเร็จ (Success Callback)
 function onScanSuccess(decodedText, decodedResult) {
     if (isProcessing) return;
-    isProcessing = true;
+    isProcessing = true; // ล็อกป้อนกันการสแกนซ้ำซ้อนในเสี้ยววินาที
 
+    console.log("สแกนเจอข้อความดิบ: ", decodedText);
 
     const cleanedText = decodedText ? decodedText.trim() : "";
     const splitElement = document.getElementById('result-split');
 
-
+    // 🛡️ ป้องกันค่าว่าง
     if (cleanedText === "") {
         playBeepSound('warning');
         document.getElementById('result-all').innerText = "สแกนสำเร็จแต่พบข้อความว่างเปล่า";
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าที่สแกนได้เป็นค่าว่าง </span>`;
-
-
-        setTimeout(() => {
-            isProcessing = false;
-        }, 1500);
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ค่าเป็นค่าว่าง (ไม่เก็บประวัติ)</span>`;
+        setTimeout(() => { isProcessing = false; }, 1500);
         return;
     }
 
@@ -125,6 +135,7 @@ function onScanSuccess(decodedText, decodedResult) {
     const endIndex = 30;
     let extractedText = "";
 
+    // ตรวจสอบเงื่อนไขความยาว 22 หลัก (ข้อมูลต้นฉบับต้องมีอย่างน้อย 30 ตัวอักษรขึ้นไป)
     if (cleanedText.length >= endIndex) {
         extractedText = cleanedText.substring(startIndex, endIndex).trim();
         const digitCount = extractedText.length;
@@ -132,242 +143,109 @@ function onScanSuccess(decodedText, decodedResult) {
         if (digitCount !== 22) {
             playBeepSound('warning');
             document.getElementById('result-all').innerText = cleanedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ไม่ใช่รหัสครุภัณฑ์ที่ถูกต้อง (${digitCount} Digits / 22)</span>`;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ รหัสตัดได้ยาว ${digitCount} หลัก (ต้องการ 22 หลัก)</span>`;
 
-
-            setTimeout(() => {
-                isProcessing = false;
-            }, 1500);
+            setTimeout(() => { isProcessing = false; }, 1500);
             return;
         }
 
-
+        // 🔍 ตรวจเช็คข้อมูลซ้ำในประวัติ
         const isDuplicate = scanHistoryList.some(item => item.text === extractedText);
 
         if (isDuplicate) {
             playBeepSound('warning');
-
             document.getElementById('result-all').innerText = cleanedText;
-            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ ตรวจพบค่าซ้ำ: ${extractedText}</span>`;
+            splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">⚠️ รหัสนี้ถูกสแกนไปแล้ว: ${extractedText}</span>`;
 
-
-            setTimeout(() => {
-                isProcessing = false;
-                console.log("ล้างสถานะล็อกหลังเจอค่าซ้ำเรียบร้อย...");
-            }, 1500);
+            setTimeout(() => { isProcessing = false; }, 1500);
             return;
         }
 
-
+        // ✅ ผ่านทุกด่าน (ถูกต้อง, ปลอดภัย, ไม่ซ้ำ, ได้ 22 หลักพอดี)
         playBeepSound('success');
 
         document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #10b981; font-weight: 700;">${extractedText}</span>`;
+        splitElement.innerHTML = `<span style="color: #1d4ed8; font-weight: 700;">${extractedText}</span>`;
 
+        // เพิ่มข้อมูลลงตารางประวัติ
         scanHistoryList.push({
             text: extractedText,
             time: getCurrentTimeFormatted()
         });
-
         updateHistoryUI();
 
     } else {
+        // กรณีข้อความ QR Code ต้นฉบับสั้นกว่า 30 ตัวอักษร
         playBeepSound('warning');
         document.getElementById('result-all').innerText = cleanedText;
-        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ ข้อความสั้นเกินไป (สั้นกว่า 22 ตัวอักษร)</span>`;
+        splitElement.innerHTML = `<span style="color: #ef4444; font-weight: 700;">❌ รหัสต้นฉบับยาว ${cleanedText.length} หลัก (สั้นเกินไป ไม่สามารถดึงตำแหน่งที่ 9-30 ได้)</span>`;
 
-
-        setTimeout(() => {
-            isProcessing = false;
-        }, 1500);
+        setTimeout(() => { isProcessing = false; }, 1500);
         return;
     }
 
-
+    // กรณีสแกนผ่านสำเร็จ หน่วงเวลาสแกน 2.5 วินาทีเพื่อขยับแผ่นใหม่
     setTimeout(() => {
         isProcessing = false;
     }, 2500);
 }
 
-
-// script.js (แทนที่ฟังก์ชัน startScanner ด้วยเวอร์ชันเสถียรภาพสูง ป้องกันกล้องดับวูบ)
-
-// 🎥 ฟังก์ชันเปิดกล้อง (ฉบับแก้ไขปัญหากล้องดับวูบบนมือถือ Android/iOS)
-// 🎥 ฟังก์ชันเปิดกล้อง (ปรับปรุงประสิทธิภาพการจับภาพและระบบ Auto-Focus เพื่อการสแกนที่รวดเร็ว)
+// 🎥 ฟังก์ชันสตาร์ทการทำงานของกล้อง
 function startScanner() {
     document.getElementById('start-btn').style.display = 'none';
-
-    document.getElementById('result-all').innerHTML = "<span style='color:#3b82f6;'>กำลังเชื่อมต่อกับฮาร์ดแวร์กล้อง...</span>";
+    document.getElementById('result-all').innerHTML = "<span style='color:#3b82f6;'>กำลังประมวลผลและจับภาพกล้อง...</span>";
 
     if (html5QrCode) {
         try { html5QrCode.clear(); } catch (e) { }
     }
 
+    // สร้างอ็อบเจกต์เชื่อมต่อไอดี #reader ใน index.html
     html5QrCode = new Html5Qrcode("reader");
 
-    // ⚙️ การตั้งค่าที่ให้ภาพคมชัดและจับโฟกัสขอบ QR Code ได้แม่นยำที่สุด
+    // ⚙️ การกำหนดสเปกที่แม่นยำและตอบสนองได้ดีที่สุด (Optimized Config)
     const config = {
-        fps: 20, // ปรับมาที่ 20 fps เพื่อช่วยให้อัตราสแกนถี่ขึ้นโดยไม่โหลด CPU เกินไป
+        fps: 15, // ความเร็วในการดึงภาพเฟรมเรตที่สมดุล
+        qrbox: 250, // กำหนดขนาดกล่องเล็งโฟกัสมาตรฐาน 250x250px เพื่อความคมชัดในการอ่าน
 
-        // 🎯 ปรับปรุงสัดส่วนกล่องสแกนให้อยู่ที่ 65% ของหน้าจอ เพื่อให้กล้องสามารถจับภาพรอบนอกได้ชัดเจน
-        qrbox: function (viewfinderWidth, viewfinderHeight) {
-            let minEdgePercentage = 0.65;
-            let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-            // ป้องกันขนาดกล่องเล็กเกินไปจนถือเล็งยาก (ขั้นต่ำสุด 200px)
-            let qrboxSize = Math.max(Math.floor(minEdgeSize * minEdgePercentage), 200);
-
-            return {
-                width: qrboxSize,
-                height: qrboxSize
-            };
-        }
+        // 🎯 [จุดปลดล็อกความเร็ว] บังคับให้เซนเซอร์กล้องวิเคราะห์ถอดรหัสเฉพาะ QR Code เท่านั้น
+        // ช่วยตัดการคำนวณรหัสชนิดอื่นทิ้งทั้งหมด ทำให้สแกนติดง่ายและเร็วขึ้นมาก
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
     };
 
-    // 🎥 กำหนดสเปกของกล้องที่ต้องการ (บังคับให้ระบบเลือกความคมชัดระดับ HD และเปิดโฟกัสสูงสุด)
-    const cameraConfig = {
-        facingMode: "environment", // บังคับกล้องหลังมือถือ
-
-        // 🎯 บังคับให้เบราว์เซอร์สุ่มความละเอียดภาพที่ระดับความละเอียด HD 720p 
-        // ซึ่งเป็นระยะที่อ่านจุด QR Code ขนาดเล็กได้ดีที่สุด และไม่ทำให้หน้าจอกระตุก
+    // การตั้งค่าความละเอียดที่เหมาะสมสำหรับการอ่าน QR Code บนมือถือ
+    const cameraConstraints = {
+        facingMode: "environment", // เรียกใช้กล้องหลังหลัก
         videoConstraints: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            // สั่งเปิดระบบโฟกัสแบบต่อเนื่องแบบเรียลไทม์ (Continuous Auto-Focus)
-            focusMode: { ideal: "continuous" }
+            width: { ideal: 640 }, // ขนาดกว้างคูณยาวที่กำลังพอดีเพื่อไม่ให้กล้องเกิดอาการเบลอหรือหน่วงขณะสแกน
+            height: { ideal: 480 }
         }
     };
 
-    // เริ่มเปิดใช้งานกล้อง
+    // สั่งเปิดกล้องสตาร์ท
     html5QrCode.start(
-        cameraConfig,
+        cameraConstraints,
         config,
-        onScanSuccess
+        onScanSuccess // ส่ง callback ฟังก์ชันตัวหลักเข้าประมวลผลรหัส
     ).then(() => {
         document.getElementById('overlay').style.display = 'flex';
-        document.getElementById('result-all').innerText = "กล้องทำงานปกติ กรุณาถือโทรศัพท์ห่างจาก QR Code ประมาณ 15-20 ซม.";
+        document.getElementById('result-all').innerText = "กล้องพร้อมใช้งาน กรุณานำ QR Code มาจ่อตรงกลางกรอบ";
         updateHistoryUI();
     }).catch(err => {
-        console.warn("ไม่สามารถเปิดกล้องหลังแบบความคมชัดสูงได้ ลองสลับแผนสำรอง...", err);
+        console.warn("ไม่สามารถรันกล้องหลังแบบกำหนดสเปกได้ สลับเข้าสู่โหมดกล้องอัตโนมัติ...", err);
 
-        // 🔄 แผนสำรอง: หากกล้องหลังแบบ HD มีปัญหา ให้เปิดกล้องมาตรฐานของอุปกรณ์
+        // 🔄 แผนสำรองกรณีเครื่องไม่รองรับ Resolution: เปิดกล้องด้วยค่าพื้นฐาน
         html5QrCode.start(
-            { facingMode: "environment" }, // ใช้ค่าเริ่มต้นไร้ข้อจำกัด Resolution
-            { fps: 20, qrbox: { width: 220, height: 220 } },
+            { facingMode: "environment" },
+            { fps: 15, qrbox: 220 },
             onScanSuccess
         ).then(() => {
             document.getElementById('overlay').style.display = 'flex';
-            document.getElementById('result-all').innerText = "กล้องทำงานปกติ (โหมดภาพมาตรฐาน)";
+            document.getElementById('result-all').innerText = "กล้องพร้อมใช้งาน (โหมดมาตรฐาน)";
             updateHistoryUI();
         }).catch(fallbackErr => {
             document.getElementById('start-btn').style.display = 'inline-block';
-            const errorMsg = fallbackErr.message || fallbackErr;
-            document.getElementById('result-all').innerHTML = `<span style="color:#ef4444; font-weight:bold;">Error: ${errorMsg}</span>`;
-            alert("❌ ไม่สามารถสตาร์ทระบบกล้องได้:\n" + errorMsg);
+            document.getElementById('result-all').innerHTML = `<span style="color:#ef4444; font-weight:bold;">Error: ${fallbackErr}</span>`;
+            alert("❌ ไม่สามารถเปิดระบบกล้องได้: " + fallbackErr);
         });
     });
 }
-
-
-
-
-
-
-function clearHistory() {
-
-    const confirmClear = confirm("คุณต้องการลบรายการครุภัณฑ์ทั้งหมดใช่หรือไม่?\n(ข้อมูลทั้งหมดจะถูกลบและไม่สามารถกู้คืนได้)");
-
-    if (confirmClear) {
-
-        scanHistoryList = [];
-
-
-        updateHistoryUI();
-
-
-        document.getElementById('result-all').innerText = "รอสแกนแผ่นใหม่...";
-        document.getElementById('result-split').innerText = "-";
-
-
-        playBeepSound('warning');
-
-        console.log("ลบรายการครุภัณฑ์เรียบร้อยแล้ว");
-    }
-}
-
-// script.js (เพิ่มโค้ดตรวจเช็คสถานะกล้องอัตโนมัติเมื่อโหลดหน้าเว็บ)
-
-// 🩺 ฟังก์ชันหลักสำหรับวิเคราะห์และตรวจโรคการทำงานของกล้อง
-async function checkCameraStatus() {
-    const diagBox = document.getElementById('diagnostic-box');
-    const diagIcon = document.getElementById('diag-icon');
-    const diagMsg = document.getElementById('diag-message');
-
-    // 1. ตรวจสอบความปลอดภัย HTTPS (Secure Context)
-    if (!window.isSecureContext) {
-        diagBox.className = "diag-box diag-error";
-        diagIcon.innerText = "❌";
-        diagMsg.innerHTML = "<strong>ระบบไม่ปลอดภัย:</strong> คุณไม่ได้รันหน้าเว็บผ่าน HTTPS หรือ localhost เบราว์เซอร์จะบล็อกกล้อง 100% (กรุณาเปิดใช้ SSL/HTTPS)";
-        return;
-    }
-
-    // 2. ตรวจสอบว่าเบราว์เซอร์และเครื่องมี API กล้องหรือไม่
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        diagBox.className = "diag-box diag-error";
-        diagIcon.innerText = "❌";
-        diagMsg.innerHTML = "<strong>อุปกรณ์ไม่รองรับ:</strong> เบราว์เซอร์หรืออุปกรณ์นี้ไม่มีพอร์ตการขอเปิดใช้งานกล้อง";
-        return;
-    }
-
-    try {
-        // 3. ตรวจเช็คว่ามีอุปกรณ์กล้องอยู่บนตัวเครื่องจริงๆ ไหม
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(device => device.kind === 'videoinput');
-
-        if (cameras.length === 0) {
-            diagBox.className = "diag-box diag-error";
-            diagIcon.innerText = "🔌";
-            diagMsg.innerHTML = "<strong>ไม่พบกล้อง:</strong> ไม่พบกล้องเว็บแคมหรือตัวอุปกรณ์เลนส์บนเครื่องชิ้นนี้";
-            return;
-        }
-
-        // 4. ตรวจเช็คสถานะสิทธิ์การเข้าถึง (Camera Permissions)
-        if (navigator.permissions && navigator.permissions.query) {
-            const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-
-            if (permissionStatus.state === 'granted') {
-                diagBox.className = "diag-box diag-ready";
-                diagIcon.innerText = "✅";
-                diagMsg.innerHTML = "<strong>พร้อมใช้งาน:</strong> อุปกรณ์และสิทธิ์การเข้าถึงกล้องสมบูรณ์พร้อมเริ่มสแกน";
-            } else if (permissionStatus.state === 'prompt') {
-                diagBox.className = "diag-box diag-warn";
-                diagIcon.innerText = "🔔";
-                diagMsg.innerHTML = "<strong>รอการเปิดสิทธิ์:</strong> ระบบพร้อมใช้งานแล้ว กรุณากด <strong>'อนุญาต (Allow)'</strong> เมื่อกล้องถามหาขอสิทธิ์";
-            } else if (permissionStatus.state === 'denied') {
-                diagBox.className = "diag-box diag-error";
-                diagIcon.innerText = "🚫";
-                diagMsg.innerHTML = "<strong>กล้องโดนบล็อก:</strong> คุณเคยปฏิเสธสิทธิ์กล้องไว้ กรุณากดไอคอนแม่กุญแจข้างแถบพิมพ์ URL เพื่อปลดล็อกอนุญาต";
-            }
-
-            // ดักจับการสลับเปลี่ยนสิทธิ์ของผู้ใช้แบบเรลไทม์
-            permissionStatus.onchange = () => {
-                checkCameraStatus(); // รันตรวจเช็คใหม่เมื่อสิทธิ์เปลี่ยนแปลง
-            };
-        } else {
-            // กรณีเป็นเบราว์เซอร์เก่าบางรุ่นที่ไม่รองรับ Permissions Query API แต่มีกล้องปกติ
-            diagBox.className = "diag-box diag-ready";
-            diagIcon.innerText = "✅";
-            diagMsg.innerHTML = "<strong>พร้อมใช้งาน:</strong> ตรวจพบฮาร์ดแวร์กล้องแล้ว (กดปุ่มด้านล่างเพื่อเริ่มขอสิทธิ์สแกน)";
-        }
-
-    } catch (error) {
-        diagBox.className = "diag-box diag-error";
-        diagIcon.innerText = "❌";
-        diagMsg.innerHTML = "<strong>เกิดข้อผิดพลาดในการวิเคราะห์:</strong> " + error.message;
-        console.error("Diagnostic error: ", error);
-    }
-}
-
-// 🚀 สั่งรันวิเคราะห์สถานะกล้องทันทีที่เปิดหน้าเว็บขึ้นมา
-window.addEventListener('DOMContentLoaded', checkCameraStatus);
-
-
