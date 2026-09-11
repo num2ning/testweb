@@ -182,7 +182,7 @@ function startScanner() {
             html5QrCode = new Html5Qrcode("reader");
 
             const startCamera = (config) => {
-                return html5QrCode.start(config, { fps: 15, qrbox: { width: 250, height: 250 } }, onScanSuccess);
+                return html5QrCode.start(config, { fps: 25, qrbox: { width: 250, height: 250 } }, onScanSuccess);
             };
 
             startCamera({ facingMode: "environment" })
