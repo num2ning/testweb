@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZXing QR Scanner</title>
-    <!-- โหลดไลบรารี ZXing จาก CDN -->
+    <title>ZXing QR Scanner - Export CSV</title>
     <script type="text/javascript" src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
     <style>
         body {
@@ -27,7 +26,6 @@
             width: 100%;
         }
 
-        /* กรอบแสดงกล้อง */
         #video {
             width: 100%;
             border-radius: 8px;
@@ -41,6 +39,8 @@
             gap: 10px;
             justify-content: center;
             margin-bottom: 15px;
+            flex-wrap: wrap;
+            /* เพื่อให้ปุ่มตัดบรรทัดได้ถ้าจอเล็ก */
         }
 
         button {
@@ -70,16 +70,65 @@
             background-color: #bb2d3b;
         }
 
-        #resultContainer {
-            margin-top: 15px;
-            padding: 15px;
-            background-color: #d1e7dd;
-            color: #0f5132;
-            border: 1px solid #badbcc;
-            border-radius: 8px;
+        /* ปุ่ม Export */
+        #exportButton {
+            background-color: #198754;
+            color: white;
             display: none;
-            /* ซ่อนไว้ก่อน */
+            /* ซ่อนไว้ก่อนจนกว่าจะมีข้อมูล */
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        #exportButton:hover {
+            background-color: #157347;
+        }
+
+        .list-container {
+            margin-top: 20px;
+            text-align: left;
+            border-top: 2px solid #eee;
+            padding-top: 15px;
+        }
+
+        .list-container h3 {
+            margin-top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #scanList {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        #scanList li {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid #0d6efd;
+            display: flex;
+            flex-direction: column;
             word-break: break-all;
+        }
+
+        .time-stamp {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+
+        .badge {
+            background-color: #0d6efd;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -87,93 +136,145 @@
 <body>
 
     <div class="scanner-container">
-        <h2>ระบบสแกน QR Code (ZXing)</h2>
+        <h2>ระบบสแกนเก็บข้อมูล</h2>
 
-        <!-- Video Element สำหรับแสดงภาพจากกล้อง -->
         <video id="video"></video>
 
         <div class="controls">
-            <button id="startButton">เปิดกล้อง / เริ่มสแกน</button>
+            <button id="startButton">เปิดกล้อง</button>
             <button id="stopButton">ปิดกล้อง</button>
         </div>
 
-        <!-- พื้นที่แสดงผลลัพธ์ -->
-        <div id="resultContainer">
-            <strong>ผลการสแกน:</strong> <span id="resultText"></span>
+        <div class="list-container">
+            <h3>รายการที่สแกน <span class="badge" id="listCount">0</span></h3>
+            <ul id="scanList"></ul>
+
+            <!-- เพิ่มปุ่ม Export ตรงนี้ -->
+            <button id="exportButton">📥 Export เป็น CSV (Excel)</button>
         </div>
     </div>
 
     <script>
-        // เมื่อโหลดหน้าเว็บเสร็จ
         window.addEventListener('load', function () {
             const codeReader = new ZXing.BrowserMultiFormatReader();
 
             const startButton = document.getElementById('startButton');
             const stopButton = document.getElementById('stopButton');
-            const resultContainer = document.getElementById('resultContainer');
-            const resultText = document.getElementById('resultText');
+            const exportButton = document.getElementById('exportButton');
+            const scanListElement = document.getElementById('scanList');
+            const listCountElement = document.getElementById('listCount');
 
             let selectedDeviceId = null;
+            let scannedDataList = [];
+            let lastScannedText = "";
+            let lastScannedTime = 0;
 
-            // 1. ขอสิทธิ์และดึงรายการกล้องทั้งหมดในอุปกรณ์ทันทีที่โหลดเว็บ
             codeReader.getVideoInputDevices()
                 .then((videoInputDevices) => {
                     if (videoInputDevices.length > 0) {
-                        // ตั้งค่าเริ่มต้นเป็นกล้องตัวแรกสุด (เผื่อหาไม่เจอ)
                         selectedDeviceId = videoInputDevices[0].deviceId;
-
-                        // 2. วนลูปหากล้องหลัง โดยเช็คจากชื่อ (Label) ของกล้อง
                         for (let i = 0; i < videoInputDevices.length; i++) {
                             const cameraName = videoInputDevices[i].label.toLowerCase();
-                            // มือถือแต่ละยี่ห้อจะตั้งชื่อกล้องหลังต่างกัน มักจะมีคำเหล่านี้อยู่
-                            if (cameraName.includes('back') ||
-                                cameraName.includes('rear') ||
-                                cameraName.includes('environment')) {
+                            if (cameraName.includes('back') || cameraName.includes('rear') || cameraName.includes('environment')) {
                                 selectedDeviceId = videoInputDevices[i].deviceId;
-                                console.log("เลือกกล้องหลังอัตโนมัติ:", videoInputDevices[i].label);
-                                break; // เจอแล้วหยุดหา
+                                break;
                             }
                         }
-                    } else {
-                        alert('ไม่พบกล้องในอุปกรณ์นี้');
                     }
-                })
-                .catch((err) => {
-                    console.error('ไม่สามารถดึงข้อมูลกล้องได้:', err);
+                }).catch(console.error);
+
+            function updateListUI() {
+                scanListElement.innerHTML = '';
+
+                [...scannedDataList].reverse().forEach(item => {
+                    const li = document.createElement('li');
+
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'time-stamp';
+                    timeSpan.textContent = item.time;
+
+                    const textNode = document.createTextNode(item.text);
+
+                    li.appendChild(timeSpan);
+                    li.appendChild(textNode);
+                    scanListElement.appendChild(li);
                 });
 
-            // เมื่อกดปุ่มเริ่มสแกน
-            startButton.addEventListener('click', () => {
-                if (!selectedDeviceId) {
-                    alert("กำลังดึงข้อมูลกล้อง หรือไม่พบกล้องที่ใช้งานได้");
-                    return;
+                listCountElement.textContent = scannedDataList.length;
+
+                // แสดงปุ่ม Export เมื่อมีข้อมูลใน List อย่างน้อย 1 รายการ
+                if (scannedDataList.length > 0) {
+                    exportButton.style.display = 'block';
+                } else {
+                    exportButton.style.display = 'none';
                 }
+            }
 
-                resultContainer.style.display = 'none';
+            startButton.addEventListener('click', () => {
+                if (!selectedDeviceId) return;
 
-                // 3. ส่ง selectedDeviceId ของกล้องหลังเข้าไปแทน undefined
                 codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
                     if (result) {
-                        // เจอ QR Code
-                        console.log('สแกนสำเร็จ:', result);
-                        resultText.textContent = result.text;
-                        resultContainer.style.display = 'block';
+                        const currentText = result.text;
+                        const currentTime = Date.now();
 
-                        codeReader.reset(); // ปิดกล้องเมื่อสแกนเสร็จ
-                    }
-                    if (err && !(err instanceof ZXing.NotFoundException)) {
-                        console.error(err);
+                        if (currentText === lastScannedText && (currentTime - lastScannedTime) < 3000) {
+                            return;
+                        }
+
+                        lastScannedText = currentText;
+                        lastScannedTime = currentTime;
+
+                        const timeString = new Date().toLocaleTimeString('th-TH');
+                        scannedDataList.push({
+                            text: currentText,
+                            time: timeString
+                        });
+
+                        updateListUI();
                     }
                 });
             });
 
-            // เมื่อกดปุ่มปิดกล้อง
             stopButton.addEventListener('click', () => {
                 codeReader.reset();
-                resultContainer.style.display = 'none';
+                lastScannedText = "";
+            });
+
+            // --- ฟังก์ชันสำหรับ Export CSV ---
+            exportButton.addEventListener('click', () => {
+                // 1. เพิ่มรหัส BOM (\uFEFF) เพื่อให้ Excel อ่านภาษาไทยได้ถูกต้อง
+                let csvContent = "\uFEFF";
+
+                // 2. สร้าง Header ของตาราง
+                csvContent += "เวลาที่สแกน,ข้อมูล (QR/Barcode)\n";
+
+                // 3. วนลูปข้อมูลเพื่อจัดรูปแบบ
+                scannedDataList.forEach(item => {
+                    // หากข้อมูลมีการเว้นวรรค หรือมีลูกน้ำ (,) ให้ครอบด้วย "" (Double Quotes)
+                    // และแทนที่ " ที่มีอยู่แล้วด้วย "" เพื่อไม่ให้ CSV พัง
+                    let cleanText = item.text.replace(/"/g, '""');
+                    csvContent += `${item.time},"${cleanText}"\n`;
+                });
+
+                // 4. สร้าง Blob (ไฟล์เสมือนในเบราว์เซอร์)
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+                // 5. สร้างลิงก์ชั่วคราวเพื่อสั่งดาวน์โหลด
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+
+                // ตั้งชื่อไฟล์พร้อมวันที่และเวลา
+                const dateStr = new Date().toISOString().slice(0, 10);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `scan_data_${dateStr}.csv`);
+
+                // สั่งคลิกลิงก์เพื่อดาวน์โหลด และลบทิ้ง
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             });
         });
-
     </script>
 
 </body>
