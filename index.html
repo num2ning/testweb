@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZXing QR Scanner</title>
+    <!-- โหลดไลบรารี ZXing จาก CDN -->
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .scanner-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        /* กรอบแสดงกล้อง */
+        #video {
+            width: 100%;
+            border-radius: 8px;
+            background-color: #000;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #startButton {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        #startButton:hover {
+            background-color: #0b5ed7;
+        }
+
+        #stopButton {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        #stopButton:hover {
+            background-color: #bb2d3b;
+        }
+
+        #resultContainer {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+            border-radius: 8px;
+            display: none;
+            /* ซ่อนไว้ก่อน */
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="scanner-container">
+        <h2>ระบบสแกน QR Code (ZXing)</h2>
+
+        <!-- Video Element สำหรับแสดงภาพจากกล้อง -->
+        <video id="video"></video>
+
+        <div class="controls">
+            <button id="startButton">เปิดกล้อง / เริ่มสแกน</button>
+            <button id="stopButton">ปิดกล้อง</button>
+        </div>
+
+        <!-- พื้นที่แสดงผลลัพธ์ -->
+        <div id="resultContainer">
+            <strong>ผลการสแกน:</strong> <span id="resultText"></span>
+        </div>
+    </div>
+
+    <script>
+        // เมื่อโหลดหน้าเว็บเสร็จ
+        window.addEventListener('load', function () {
+            // เรียกใช้ BrowserMultiFormatReader ของ ZXing (รองรับทั้ง QR และบาร์โค้ดทั่วไป)
+            const codeReader = new ZXing.BrowserMultiFormatReader();
+
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultText = document.getElementById('resultText');
+
+            // เมื่อกดปุ่มเริ่มสแกน
+            startButton.addEventListener('click', () => {
+                // ซ่อนผลลัพธ์เก่า
+                resultContainer.style.display = 'none';
+
+                // เริ่มเปิดกล้องและสแกน (ใส่ undefined เพื่อให้เลือกกล้องเริ่มต้นอัตโนมัติ)
+                codeReader.decodeFromVideoDevice(undefined, 'video', (result, err) => {
+                    if (result) {
+                        // เจอ QR Code!
+                        console.log('สแกนสำเร็จ:', result);
+                        resultText.textContent = result.text;
+                        resultContainer.style.display = 'block';
+
+                        // สร้างเสียง Beep เบาๆ (ทางเลือก)
+                        // new Audio('https://www.soundjay.com/buttons/beep-07a.mp3').play();
+
+                        // ปิดกล้องอัตโนมัติเมื่อสแกนเจอ (เอาออกได้ถ้าต้องการสแกนต่อเนื่อง)
+                        codeReader.reset();
+                    }
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        // ดักจับ Error ที่ไม่ใช่ "หา QR ไม่เจอ" (เช่น ผู้ใช้ไม่อนุญาตให้ใช้กล้อง)
+                        console.error(err);
+                    }
+                });
+            });
+
+            // เมื่อกดปุ่มปิดกล้อง
+            stopButton.addEventListener('click', () => {
+                codeReader.reset(); // หยุดการทำงานของกล้องทั้งหมด
+                resultContainer.style.display = 'none';
+            });
+        });
+    </script>
+
+</body>
+
+</html>
