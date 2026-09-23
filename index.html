@@ -106,7 +106,6 @@
     <script>
         // เมื่อโหลดหน้าเว็บเสร็จ
         window.addEventListener('load', function () {
-            // เรียกใช้ BrowserMultiFormatReader ของ ZXing (รองรับทั้ง QR และบาร์โค้ดทั่วไป)
             const codeReader = new ZXing.BrowserMultiFormatReader();
 
             const startButton = document.getElementById('startButton');
@@ -114,27 +113,55 @@
             const resultContainer = document.getElementById('resultContainer');
             const resultText = document.getElementById('resultText');
 
+            let selectedDeviceId = null;
+
+            // 1. ขอสิทธิ์และดึงรายการกล้องทั้งหมดในอุปกรณ์ทันทีที่โหลดเว็บ
+            codeReader.getVideoInputDevices()
+                .then((videoInputDevices) => {
+                    if (videoInputDevices.length > 0) {
+                        // ตั้งค่าเริ่มต้นเป็นกล้องตัวแรกสุด (เผื่อหาไม่เจอ)
+                        selectedDeviceId = videoInputDevices[0].deviceId;
+
+                        // 2. วนลูปหากล้องหลัง โดยเช็คจากชื่อ (Label) ของกล้อง
+                        for (let i = 0; i < videoInputDevices.length; i++) {
+                            const cameraName = videoInputDevices[i].label.toLowerCase();
+                            // มือถือแต่ละยี่ห้อจะตั้งชื่อกล้องหลังต่างกัน มักจะมีคำเหล่านี้อยู่
+                            if (cameraName.includes('back') ||
+                                cameraName.includes('rear') ||
+                                cameraName.includes('environment')) {
+                                selectedDeviceId = videoInputDevices[i].deviceId;
+                                console.log("เลือกกล้องหลังอัตโนมัติ:", videoInputDevices[i].label);
+                                break; // เจอแล้วหยุดหา
+                            }
+                        }
+                    } else {
+                        alert('ไม่พบกล้องในอุปกรณ์นี้');
+                    }
+                })
+                .catch((err) => {
+                    console.error('ไม่สามารถดึงข้อมูลกล้องได้:', err);
+                });
+
             // เมื่อกดปุ่มเริ่มสแกน
             startButton.addEventListener('click', () => {
-                // ซ่อนผลลัพธ์เก่า
+                if (!selectedDeviceId) {
+                    alert("กำลังดึงข้อมูลกล้อง หรือไม่พบกล้องที่ใช้งานได้");
+                    return;
+                }
+
                 resultContainer.style.display = 'none';
 
-                // เริ่มเปิดกล้องและสแกน (ใส่ undefined เพื่อให้เลือกกล้องเริ่มต้นอัตโนมัติ)
-                codeReader.decodeFromVideoDevice(undefined, 'video', (result, err) => {
+                // 3. ส่ง selectedDeviceId ของกล้องหลังเข้าไปแทน undefined
+                codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
                     if (result) {
-                        // เจอ QR Code!
+                        // เจอ QR Code
                         console.log('สแกนสำเร็จ:', result);
                         resultText.textContent = result.text;
                         resultContainer.style.display = 'block';
 
-                        // สร้างเสียง Beep เบาๆ (ทางเลือก)
-                        // new Audio('https://www.soundjay.com/buttons/beep-07a.mp3').play();
-
-                        // ปิดกล้องอัตโนมัติเมื่อสแกนเจอ (เอาออกได้ถ้าต้องการสแกนต่อเนื่อง)
-                        codeReader.reset();
+                        codeReader.reset(); // ปิดกล้องเมื่อสแกนเสร็จ
                     }
                     if (err && !(err instanceof ZXing.NotFoundException)) {
-                        // ดักจับ Error ที่ไม่ใช่ "หา QR ไม่เจอ" (เช่น ผู้ใช้ไม่อนุญาตให้ใช้กล้อง)
                         console.error(err);
                     }
                 });
@@ -142,10 +169,11 @@
 
             // เมื่อกดปุ่มปิดกล้อง
             stopButton.addEventListener('click', () => {
-                codeReader.reset(); // หยุดการทำงานของกล้องทั้งหมด
+                codeReader.reset();
                 resultContainer.style.display = 'none';
             });
         });
+
     </script>
 
 </body>
